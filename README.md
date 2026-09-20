@@ -10,6 +10,7 @@ Klick aufs Tray-Icon → kleines Popup mit den Rest-Kontingenten von **Claude**,
 
 - 📊 **Alle Stände, ein Popup** — je Konto eine Karte mit Rest in Prozent, Balken und Reset-Zeit („in 2 Stunden")
 - 👥 **Multi-Account** — beliebig viele Konten je Anbieter (Name + Auth-Datei), z. B. Haupt- und Zweitlogin nebeneinander
+- 🔍 **Automatisch erkennen** — findet deine vorhandenen Standard-Logins (Codex, Claude, Pi) per Knopf im Hinzufügen-Dialog, inkl. Auswahlliste bei mehreren Treffern
 - 🪟 **Atmendes Popup** — Fensterhöhe folgt der Kartenliste; leere Anbieter blenden sich aus statt `n/a`-Rauschen
 - 🔄 **App-Update per Rechtsklick** — prüft GitHub Releases, fragt vor der Installation
 - 🔕 **Kein Hintergrund-Gedöns** — Abruf nur beim Öffnen + per Button, kein Polling, keine Toasts
@@ -26,13 +27,13 @@ Nur **Windows 11 (x64)**. Update: Rechtsklick → *App aktualisieren …* oder n
 ## Benutzen
 
 - **Linksklick** Tray-Icon → Stände ansehen
-- **Konto hinzufügen** → Anbieter wählen, Name + Auth-Datei (dein CLI-Login, z. B. `~/.codex/auth.json`)
+- **Konto hinzufügen** → Anbieter wählen, Name + Auth-Datei (dein CLI-Login, z. B. `~/.codex/auth.json`) — oder **Automatisch erkennen …** nutzen, falls du nicht weißt, wo deine Logins liegen
 - **··· je Karte** → umbenennen / entfernen (löscht nie die Auth-Datei selbst)
 
 ## Entwickeln
 
 ```powershell
-dotnet test tests/BirdyCreditStatus.Core.Tests   # 167 Tests
+dotnet test tests/BirdyCreditStatus.Core.Tests   # 177 Tests
 dotnet build BirdyCreditStatus.slnx              # 0 Warnungen
 ```
 
