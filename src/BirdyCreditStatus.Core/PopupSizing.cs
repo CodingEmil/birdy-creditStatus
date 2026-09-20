@@ -23,4 +23,15 @@ public static class PopupSizing
     /// <summary>Cap = min(860, Arbeitshöhe − 32), mindestens 200.</summary>
     public static double MaxHeight(double workAreaHeight, double preferredMax = PreferredMaxHeight) =>
         Math.Max(AbsoluteMinMax, Math.Min(preferredMax, workAreaHeight - EdgeMargin));
+
+    /// <summary>Mindest-Fensterhöhe, solange ein ContentDialog offen ist (F008-Fix):
+    /// Das atmende Popup schrumpft ohne Konten auf ~200px — darin ist der Dialog
+    /// „Konto hinzufügen" gequetscht/nicht bedienbar. Vor ShowAsync temporär auf
+    /// diese Höhe wachsen (gecappt), danach via Fit() wieder schrumpfen.</summary>
+    public const double DialogMinHeight = 600;
+
+    /// <summary>Fensterhöhe für modale Dialoge: mindestens DialogMin (bzw. Wunsch),
+    /// nie über Cap, nie unter aktuelle Höhe (nur wachsen, nie schrumpfen).</summary>
+    public static int DialogHeight(int currentHeight, double workAreaHeight, double desiredHeight = DialogMinHeight) =>
+        Math.Max(currentHeight, Fit(desiredHeight, MaxHeight(workAreaHeight)));
 }

@@ -997,6 +997,38 @@ public sealed partial class PopupWindow : Window
     /// <summary>Shell-Chrome um den Karteninhalt (Rundung + ScrollViewer-Rahmen + Reserve).</summary>
     private const double ChromeExtra = 24;
 
+    /// <summary>Zeigt einen ContentDialog mit genug Platz (F008-Fix): Das atmende Popup
+    /// ist ohne/vielen wenigen Konten kleiner als der Dialog braucht — temporär auf
+    /// DialogMinHeight wachsen (gecappt, nur wachsen), Klick-daneben-Schließen solange
+    /// sperren, danach via FitWindowToContent() wieder schrumpfen. Wirft nie.</summary>
+    private async Task<ContentDialogResult> ShowDialogAsync(ContentDialog dialog)
+    {
+        var wasSuspended = _suspendDismiss;
+        _suspendDismiss = true;
+        try
+        {
+            try
+            {
+                var area = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+                var want = PopupSizing.DialogHeight(AppWindow.Size.Height, area.Height);
+                if (want > AppWindow.Size.Height)
+                {
+                    AppWindow.Resize(new SizeInt32((int)PopupSizing.FixedWidth, want));
+                    MoveToBottomRight();
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+            }
+            return await dialog.ShowAsync();
+        }
+        finally
+        {
+            _suspendDismiss = wasSuspended;
+            FitWindowToContent();
+        }
+    }
+
     private async void OnRefreshClicked(object sender, RoutedEventArgs e)
     {
         Render(await _refresh.RefreshAllAsync());
@@ -1065,7 +1097,7 @@ public sealed partial class PopupWindow : Window
             CloseButtonText = "Später",
             XamlRoot = Content.XamlRoot,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await ShowDialogAsync(dialog) != ContentDialogResult.Primary)
         {
             return;
         }
@@ -1099,13 +1131,13 @@ public sealed partial class PopupWindow : Window
     {
         try
         {
-            await new ContentDialog
+            await ShowDialogAsync(new ContentDialog
             {
                 Title = title,
                 Content = text,
                 CloseButtonText = "OK",
                 XamlRoot = Content.XamlRoot,
-            }.ShowAsync();
+            });
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -1283,7 +1315,12 @@ public sealed partial class PopupWindow : Window
         var dialog = new ContentDialog
         {
             Title = "Konto hinzufügen",
-            Content = panel,
+            Content = new ScrollViewer
+            {
+                Content = panel,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollMode = ScrollMode.Disabled,
+            },
             PrimaryButtonText = "Hinzufügen",
             CloseButtonText = "Abbrechen",
             XamlRoot = Content.XamlRoot,
@@ -1317,7 +1354,7 @@ public sealed partial class PopupWindow : Window
 
             confirmed = true;
         };
-        await dialog.ShowAsync();
+        await ShowDialogAsync(dialog);
         if (!confirmed)
         {
             return;
@@ -1395,7 +1432,7 @@ public sealed partial class PopupWindow : Window
 
             confirmed = true;
         };
-        await dialog.ShowAsync();
+        await ShowDialogAsync(dialog);
         if (!confirmed)
         {
             return;
@@ -1435,7 +1472,7 @@ public sealed partial class PopupWindow : Window
             CloseButtonText = "Abbrechen",
             XamlRoot = Content.XamlRoot,
         };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        if (await ShowDialogAsync(dialog) != ContentDialogResult.Primary)
         {
             return;
         }
@@ -1456,6 +1493,7 @@ public sealed partial class PopupWindow : Window
     /// und gilt auch für die installierte (unpackaged) Version.</summary>
     private Task<string?> PickAuthFileAsync(string provider)
     {
+        var wasSuspended = _suspendDismiss;
         _suspendDismiss = true;
         try
         {
@@ -1463,7 +1501,7 @@ public sealed partial class PopupWindow : Window
         }
         finally
         {
-            _suspendDismiss = false;
+            _suspendDismiss = wasSuspended;
         }
     }
 

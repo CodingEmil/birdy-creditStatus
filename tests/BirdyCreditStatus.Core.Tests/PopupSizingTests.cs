@@ -27,4 +27,20 @@ public sealed class PopupSizingTests
         Assert.Equal(600, PopupSizing.MaxHeight(632));
         Assert.Equal(200, PopupSizing.MaxHeight(100));
     }
+
+    [Fact]
+    public void DialogHeight_grows_small_popup_to_dialog_min_but_never_shrinks()
+    {
+        Assert.Equal(600, PopupSizing.DialogHeight(200, 1080));
+        Assert.Equal(860, PopupSizing.DialogHeight(860, 1080));
+        Assert.Equal(700, PopupSizing.DialogHeight(700, 1080));
+    }
+
+    [Fact]
+    public void DialogHeight_respects_small_work_areas()
+    {
+        Assert.Equal(600, PopupSizing.DialogHeight(200, 632));
+        Assert.Equal(368, PopupSizing.DialogHeight(200, 400));
+        Assert.Equal(400, PopupSizing.DialogHeight(400, 400));
+    }
 }
