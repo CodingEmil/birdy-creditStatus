@@ -1303,6 +1303,65 @@ public sealed partial class PopupWindow : Window
         {
         }
         var panel = new StackPanel { Spacing = 8 };
+        var detectButton = new Button { Content = "Automatisch erkennen …", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var foundLabel = new TextBlock { Text = "Gefundene Logins", Visibility = Visibility.Collapsed };
+        var foundBox = new ComboBox
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Visibility = Visibility.Collapsed,
+            PlaceholderText = "Gefundenes Login wählen …",
+        };
+        foundBox.SelectionChanged += (_, _) =>
+        {
+            if ((foundBox.SelectedItem as ComboBoxItem)?.Tag is DetectedAuth pick)
+            {
+                SelectProvider(providerBox, pick.Provider);
+                pathBox.Text = pick.Path;
+                errorText.Visibility = Visibility.Collapsed;
+            }
+        };
+        detectButton.Click += (_, _) =>
+        {
+            // F010-T2: nur die 3 Defaults per Marker (Core-Naht, nie Throw);
+            // Eingerichtete Pfade filtert Detect bereits raus.
+            var configured = _accounts.Load()
+                .Where(a => !string.IsNullOrWhiteSpace(a.AuthFilePath))
+                .Select(a => a.AuthFilePath)
+                .ToList();
+            var found = DefaultAuthDiscovery.Detect(configured);
+            if (found.Count == 0)
+            {
+                foundLabel.Visibility = Visibility.Collapsed;
+                foundBox.Visibility = Visibility.Collapsed;
+                errorText.Text = "Keine Standard-Logins gefunden — bitte Anbieter und Datei manuell wählen.";
+                errorText.Visibility = Visibility.Visible;
+                return;
+            }
+            errorText.Visibility = Visibility.Collapsed;
+            if (found.Count == 1)
+            {
+                foundLabel.Visibility = Visibility.Collapsed;
+                foundBox.Visibility = Visibility.Collapsed;
+                SelectProvider(providerBox, found[0].Provider);
+                pathBox.Text = found[0].Path;
+                return;
+            }
+            foundBox.Items.Clear();
+            foreach (var candidate in found)
+            {
+                foundBox.Items.Add(new ComboBoxItem
+                {
+                    Content = $"{candidate.DisplayName} — {candidate.Path}",
+                    Tag = candidate,
+                });
+            }
+            foundBox.SelectedIndex = -1;
+            foundLabel.Visibility = Visibility.Visible;
+            foundBox.Visibility = Visibility.Visible;
+        };
+        panel.Children.Add(detectButton);
+        panel.Children.Add(foundLabel);
+        panel.Children.Add(foundBox);
         panel.Children.Add(new TextBlock { Text = "Anbieter" });
         panel.Children.Add(providerBox);
         panel.Children.Add(new TextBlock { Text = "Name" });
@@ -1368,6 +1427,19 @@ public sealed partial class PopupWindow : Window
         (box.SelectedItem as ComboBoxItem)?.Tag as string is { } tag && AccountProviders.IsKnown(tag)
             ? tag
             : AccountProviders.Codex;
+
+    /// <summary>Stellt die Anbieter-Dropdown auf den erkannten Provider (F010-T2).</summary>
+    private static void SelectProvider(ComboBox box, string provider)
+    {
+        for (var i = 0; i < box.Items.Count; i++)
+        {
+            if ((box.Items[i] as ComboBoxItem)?.Tag as string == provider)
+            {
+                box.SelectedIndex = i;
+                return;
+            }
+        }
+    }
 
     /// <summary>Karten-Menü „Umbenennen" (F006-T3): wirkt sofort (Liste + Adapter +
     /// Cache wandern mit), Datei und übrige Karten unberührt.</summary>
