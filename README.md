@@ -4,6 +4,8 @@ Token-Stände aller AI-Abos auf einen Blick — direkt aus der Windows-Taskleist
 
 Klick aufs Tray-Icon → kleines Popup mit den Rest-Kontingenten von **Claude**, **Codex** und **OpenCode Go**. Kein Browser, kein Suchen, kein Raten.
 
+![Popup mit Token-Ständen](docs/popup.png)
+
 ## Features
 
 - 📊 **Alle Stände, ein Popup** — je Konto eine Karte mit Rest in Prozent, Balken und Reset-Zeit („in 2 Stunden")
@@ -35,3 +37,7 @@ dotnet build BirdyCreditStatus.slnx              # 0 Warnungen
 ```
 
 Stack: **.NET 10, C#, WinUI 3**, single-process Tray-App. Installer: Inno Setup 6 (`installer/README.md`). Architektur: `ARCHITECTURE.md`, Domain-Sprache: `CONTEXT.md`, Entscheidungen: `docs/decisions/`.
+
+## Lizenz
+
+MIT — siehe [LICENSE](LICENSE).
