@@ -13,4 +13,4 @@ Based on `PROJECT.md` and `ARCHITECTURE.md`.
 | F007 | Multi-Account alle Anbieter | Claude- und OpenCode-Go-Konten 1:1 wie Codex (Tripel `{Provider, Name, Auth-Datei}`, ein Dialog, keine Karte ohne Konto) | F006 | done |
 | F008 | Popup-Größe folgt Inhalt | Fensterhöhe atmet mit der Kartenliste (Cap = min(860, Arbeitshöhe − Rand), kein Minimum, Breite fix 380, darüber Scroll) | F007 | done |
 | F009 | App-Update per Rechtsklick | „App aktualisieren …" prüft GitHub Releases gegen laufende Version; bei Fund Download + Rückfrage + Setup-Start, sonst „aktuell"-Hinweis; nur manuell | F008 | done (#30) |
-| F010 | Auth-Erkennung im Hinzufügen-Dialog | „Automatisch erkennen"-Knopf scannt die 3 Default-Logins per Format-Marker und belegt Anbieter + Pfad vor (Liste bei mehreren Treffern) | F007 | spec (#33) |
+| F010 | Auth-Erkennung im Hinzufügen-Dialog | „Automatisch erkennen"-Knopf scannt die 3 Default-Logins per Format-Marker und belegt Anbieter + Pfad vor (Liste bei mehreren Treffern) | F007 | done (#33, #34, #35) |

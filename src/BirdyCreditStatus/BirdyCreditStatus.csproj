@@ -12,7 +12,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Laufzeit-Versionsanzeige (Popup-Footer): Assembly-Version der App.
          Bei jedem Release mit MyAppVersion in installer/Setup.iss mittziehen. -->
-    <Version>1.4.2</Version>
+    <Version>1.4.3</Version>
   </PropertyGroup>
 
   <ItemGroup>
