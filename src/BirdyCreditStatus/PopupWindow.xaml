@@ -1,0 +1,224 @@
+<Window
+    x:Class="BirdyCreditStatus.PopupWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:BirdyCreditStatus"
+    Title="Birdy Credit Status">
+
+    <!-- T4 Acrylic-Shell: fest Dark (kein System-Follow), ~16px-Silhouette.
+         Der Fensterrahmen liefert nur DWMWCP_ROUND (systemseitiges Maximum,
+         siehe FlyoutStyle); die ~16px-Rundung zeichnet diese XAML-Shell.
+         Hintergrund transparent, damit das Frosted-Glass (DesktopAcrylicBackdrop
+         mit Mica-Fallback, siehe Code-Behind) durchscheint; Texte/Balken per
+         System-Brushes (Dark). Kein eigener Außenrand (User-Vorgabe: als weißer
+         Rand/Strich sichtbar gewesen). -->
+    <Border x:Name="ShellRoot"
+            CornerRadius="16"
+            Background="Transparent"
+            RequestedTheme="Dark">
+    <Border.Resources>
+        <local:StarWidthConverter x:Key="StarWidthConverter" />
+        <Style x:Key="GlassCardStyle" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <!-- T5-Fix (D007): kein ThemeShadow — Receivers.Add ließ den Prozess
+                 reproduzierbar nativ in Microsoft.UI.Xaml.dll sterben (0xC000027B
+                 beim Start). Schweben kommt aus Card-Fill + Stroke über Acrylic. -->
+        </Style>
+        <!-- Runde Balken (Kapsel, Radius 4 bei Höhe 8): WinUI3 hat kein MultiBinding,
+             daher teilt StarWidthConverter Value (0..100, Maximum 100) in zwei Star-Spalten. -->
+        <Style x:Key="RoundedBarStyle" TargetType="ProgressBar">
+            <Setter Property="Height" Value="8" />
+            <Setter Property="MinHeight" Value="8" />
+            <Setter Property="Background" Value="{ThemeResource ControlAltFillColorSecondaryBrush}" />
+            <Setter Property="Foreground" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid Height="8" Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource StarWidthConverter}}" />
+                                <ColumnDefinition Width="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Value, Converter={StaticResource StarWidthConverter}, ConverterParameter=Rest}" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.ColumnSpan="2" CornerRadius="4" Background="{TemplateBinding Background}" />
+                            <Border Grid.Column="0" CornerRadius="4" Background="{TemplateBinding Foreground}" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Border.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled">
+    <StackPanel x:Name="CardsPanel" Padding="20,8,20,4" Spacing="16">
+        <TextBlock x:Name="AppVersionText" FontSize="11" Opacity="0.55" HorizontalAlignment="Right" Margin="0,0,0,-8" />
+        <!-- T5: Glass-Card (Schweben via Fill + Stroke über Acrylic; Shadow per D007 entfernt). -->
+        <Border x:Name="ClaudeCard" Style="{StaticResource GlassCardStyle}">
+        <StackPanel Spacing="12">
+        <Grid>
+        <TextBlock x:Name="ClaudeTitle" Text="Claude" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Content="&#xE712;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Right" Style="{StaticResource SubtleButtonStyle}" ToolTipService.ToolTip="Konto verwalten">
+            <Button.Flyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Text="Umbenennen" Tag="claude" Click="OnRenameAccountClicked" />
+                    <MenuFlyoutItem Text="Entfernen" Tag="claude" Click="OnRemoveAccountClicked" />
+                </MenuFlyout>
+            </Button.Flyout>
+        </Button>
+        </Grid>
+        <TextBlock x:Name="ClaudeBadge" Text="Claude" FontSize="11" Opacity="0.6" />
+
+        <StackPanel x:Name="CardPanel" Spacing="12">
+            <StackPanel x:Name="SessionRow" Spacing="4">
+                <Grid>
+                    <TextBlock Text="Session" />
+                    <TextBlock x:Name="SessionValue" Text="–" HorizontalAlignment="Right" />
+                </Grid>
+                <ProgressBar x:Name="SessionBar" Minimum="0" Maximum="100" Style="{StaticResource RoundedBarStyle}" />
+                <TextBlock x:Name="SessionReset" Text="" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+
+            <StackPanel x:Name="WeekRow" Spacing="4">
+                <Grid>
+                    <TextBlock Text="Woche" />
+                    <TextBlock x:Name="WeekValue" Text="–" HorizontalAlignment="Right" />
+                </Grid>
+                <ProgressBar x:Name="WeekBar" Minimum="0" Maximum="100" Style="{StaticResource RoundedBarStyle}" />
+                <TextBlock x:Name="WeekReset" Text="" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel x:Name="SetupPanel" Visibility="Collapsed" Spacing="8">
+            <TextBlock Text="Kein Claude-Login gefunden." FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock TextWrapping="Wrap" Opacity="0.85" Text="Melde dich einmalig im Terminal an und hole danach die Stände ab:" />
+            <TextBlock Text="claude login" FontFamily="Consolas" />
+            <Button x:Name="SetupRefreshButton" Content="Erneut abrufen" Click="OnRefreshClicked" Style="{StaticResource AccentButtonStyle}" />
+        </StackPanel>
+
+        <TextBlock x:Name="ErrorText" Visibility="Collapsed" Foreground="{ThemeResource SystemFillColorCautionBrush}" TextWrapping="Wrap" />
+        <TextBlock x:Name="UpdatedText" Text="Noch nie aktualisiert" FontSize="12" Opacity="0.7" />
+        </StackPanel>
+        </Border>
+
+        <Border x:Name="CodexCard" Style="{StaticResource GlassCardStyle}">
+        <StackPanel Spacing="12">
+        <Grid>
+            <TextBlock x:Name="CodexTitle" Text="Codex" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Button x:Name="CodexMenuButton" Content="&#xE712;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Right" Style="{StaticResource SubtleButtonStyle}" ToolTipService.ToolTip="Konto verwalten">
+                <Button.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Umbenennen" Tag="codex" Click="OnRenameAccountClicked" />
+                        <MenuFlyoutItem Text="Entfernen" Tag="codex" Click="OnRemoveAccountClicked" />
+                    </MenuFlyout>
+                </Button.Flyout>
+            </Button>
+        </Grid>
+        <TextBlock x:Name="CodexBadge" Text="Codex" FontSize="11" Opacity="0.6" />
+
+        <StackPanel x:Name="CodexCardPanel" Spacing="12">
+            <StackPanel x:Name="CodexFiveHourRow" Spacing="4">
+                <Grid>
+                    <TextBlock Text="5 Stunden" />
+                    <TextBlock x:Name="CodexFiveHourValue" Text="–" HorizontalAlignment="Right" />
+                </Grid>
+                <ProgressBar x:Name="CodexFiveHourBar" Minimum="0" Maximum="100" Style="{StaticResource RoundedBarStyle}" />
+                <TextBlock x:Name="CodexFiveHourReset" Text="" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+
+            <StackPanel x:Name="CodexWeekRow" Spacing="4">
+                <Grid>
+                    <TextBlock Text="Woche" />
+                    <TextBlock x:Name="CodexWeekValue" Text="–" HorizontalAlignment="Right" />
+                </Grid>
+                <ProgressBar x:Name="CodexWeekBar" Minimum="0" Maximum="100" Style="{StaticResource RoundedBarStyle}" />
+                <TextBlock x:Name="CodexWeekReset" Text="" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel x:Name="CodexSetupPanel" Visibility="Collapsed" Spacing="8">
+            <TextBlock Text="Kein Codex-Login gefunden." FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock TextWrapping="Wrap" Opacity="0.85" Text="Melde dich einmalig im Terminal an und hole danach die Stände ab:" />
+            <TextBlock Text="codex login" FontFamily="Consolas" />
+            <Button x:Name="CodexSetupRefreshButton" Content="Erneut abrufen" Click="OnRefreshClicked" Style="{StaticResource AccentButtonStyle}" />
+        </StackPanel>
+
+        <TextBlock x:Name="CodexErrorText" Visibility="Collapsed" Foreground="{ThemeResource SystemFillColorCautionBrush}" TextWrapping="Wrap" />
+        <TextBlock x:Name="CodexUpdatedText" Text="Noch nie aktualisiert" FontSize="12" Opacity="0.7" />
+        </StackPanel>
+        </Border>
+
+        <Border x:Name="GoCard" Style="{StaticResource GlassCardStyle}">
+        <StackPanel Spacing="12">
+        <Grid>
+        <TextBlock x:Name="GoTitle" Text="OpenCode Go" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Content="&#xE712;" FontFamily="Segoe MDL2 Assets" HorizontalAlignment="Right" Style="{StaticResource SubtleButtonStyle}" ToolTipService.ToolTip="Konto verwalten">
+            <Button.Flyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Text="Umbenennen" Tag="opencode-go" Click="OnRenameAccountClicked" />
+                    <MenuFlyoutItem Text="Entfernen" Tag="opencode-go" Click="OnRemoveAccountClicked" />
+                </MenuFlyout>
+            </Button.Flyout>
+        </Button>
+        </Grid>
+        <TextBlock x:Name="GoBadge" Text="OpenCode Go" FontSize="11" Opacity="0.6" />
+
+        <StackPanel x:Name="GoCardPanel" Spacing="12">
+            <StackPanel x:Name="GoRollingRow" Spacing="4">
+                <Grid>
+                    <TextBlock Text="Rolling" />
+                    <TextBlock x:Name="GoRollingValue" Text="–" HorizontalAlignment="Right" />
+                </Grid>
+                <ProgressBar x:Name="GoRollingBar" Minimum="0" Maximum="100" Style="{StaticResource RoundedBarStyle}" />
+                <TextBlock x:Name="GoRollingReset" Text="" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+
+            <StackPanel x:Name="GoWeekRow" Spacing="4">
+                <Grid>
+                    <TextBlock Text="Woche" />
+                    <TextBlock x:Name="GoWeekValue" Text="–" HorizontalAlignment="Right" />
+                </Grid>
+                <ProgressBar x:Name="GoWeekBar" Minimum="0" Maximum="100" Style="{StaticResource RoundedBarStyle}" />
+                <TextBlock x:Name="GoWeekReset" Text="" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+
+            <StackPanel x:Name="GoMonthRow" Spacing="4">
+                <Grid>
+                    <TextBlock Text="Monat" />
+                    <TextBlock x:Name="GoMonthValue" Text="–" HorizontalAlignment="Right" />
+                </Grid>
+                <ProgressBar x:Name="GoMonthBar" Minimum="0" Maximum="100" Style="{StaticResource RoundedBarStyle}" />
+                <TextBlock x:Name="GoMonthReset" Text="" FontSize="12" Opacity="0.7" />
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel x:Name="GoSetupPanel" Visibility="Collapsed" Spacing="8">
+            <TextBlock Text="Kein OpenCode-Go-Key gefunden." FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock TextWrapping="Wrap" Opacity="0.85" Text="Hinterlege einmalig den API-Key in Pi und hole danach die Stände ab:" />
+            <TextBlock Text="~/.pi/agent/auth.json → opencode-go.key" FontFamily="Consolas" TextWrapping="Wrap" />
+            <Button x:Name="GoSetupRefreshButton" Content="Erneut abrufen" Click="OnRefreshClicked" Style="{StaticResource AccentButtonStyle}" />
+        </StackPanel>
+
+        <TextBlock x:Name="GoErrorText" Visibility="Collapsed" Foreground="{ThemeResource SystemFillColorCautionBrush}" TextWrapping="Wrap" />
+        <TextBlock x:Name="GoUpdatedText" Text="Noch nie aktualisiert" FontSize="12" Opacity="0.7" />
+        </StackPanel>
+        </Border>
+
+        <StackPanel x:Name="EmptyStatePanel" Visibility="Collapsed" Spacing="8">
+            <TextBlock Text="Keine Konten konfiguriert – über „Konto hinzufügen“ einrichten." TextWrapping="Wrap" />
+            <Button Content="Konto hinzufügen" Click="OnAddAccountClicked" />
+        </StackPanel>
+
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="AddAccountButton" Content="Konto hinzufügen" Grid.Column="0" Click="OnAddAccountClicked" />
+            <Button x:Name="RefreshButton" Content="Aktualisieren" Grid.Column="1" HorizontalAlignment="Right" Click="OnRefreshClicked" Style="{StaticResource AccentButtonStyle}" />
+        </Grid>
+    </StackPanel>
+    </ScrollViewer>
+    </Border>
+</Window>

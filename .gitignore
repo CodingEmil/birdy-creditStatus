@@ -1,0 +1,15 @@
+.pi/git/
+.pi/npm/
+.pi/cockpit.pid
+.pi/cockpit.log
+
+# .NET
+bin/
+obj/
+.vs/
+TestResults/
+*.user
+
+# Installer-Artefakte (F005-T2): publish-Output + Setup.exe werden lokal gebaut
+installer/publish/
+installer/dist/

@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "birdy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "CodingEmil/birdy-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "birdy-skills@birdy-skills": true
+  }
+}

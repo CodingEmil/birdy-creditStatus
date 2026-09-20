@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>BirdyCreditStatus</RootNamespace>
+    <ApplicationIcon>Assets\TrayIcon.ico</ApplicationIcon>
+    <WindowsPackageType>None</WindowsPackageType>
+    <UseWinUI>true</UseWinUI>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Laufzeit-Versionsanzeige (Popup-Footer): Assembly-Version der App.
+         Bei jedem Release mit MyAppVersion in installer/Setup.iss mittziehen. -->
+    <Version>1.4.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BirdyCreditStatus.Core\BirdyCreditStatus.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\TrayIcon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- F005-T2: Der XAML-Compiler kopiert .xbf/.pri per <Copy> ins Output, ohne sie
+       als Items zu tracken — `dotnet publish` würde sie unterschlagen und die
+       installierte App stürzt in InitializeComponent (XamlParseException) ab.
+       Deshalb nach dem Publish explizit in PublishDir nachziehen (flach).
+       Verifikation: publish-Output muss App.xbf, MainWindow.xbf, PopupWindow.xbf
+       und BirdyCreditStatus.pri enthalten. -->
+  <Target Name="CopyGeneratedXamlToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <XamlPublishFiles Include="$(OutputPath)*.xbf;$(OutputPath)*.pri" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XamlPublishFiles)" DestinationFolder="$(PublishDir)"
+          SkipUnchangedFiles="true" />
+    <Message Importance="high"
+             Text="CopyGeneratedXamlToPublish: @(XamlPublishFiles->Count()) Dateien" />
+  </Target>
+
+</Project>

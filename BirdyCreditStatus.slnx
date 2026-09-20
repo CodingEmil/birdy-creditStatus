@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BirdyCreditStatus.Core/BirdyCreditStatus.Core.csproj" />
+    <Project Path="src/BirdyCreditStatus/BirdyCreditStatus.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BirdyCreditStatus.Core.Tests/BirdyCreditStatus.Core.Tests.csproj" />
+  </Folder>
+</Solution>

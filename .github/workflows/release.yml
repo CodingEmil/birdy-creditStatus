@@ -1,0 +1,65 @@
+# Release Setup — baut Setup.exe und hängt sie an ein GitHub Release.
+#
+# Start: Actions-Tab → "Release Setup" → "Run workflow" → Version (X.Y.Z).
+# Manueller Trigger (kein Push-Build): läuft nur nach Major-Update auf Knopfdruck.
+# Unsigned (D011) — SmartScreen-Warnung bleibt.
+
+name: Release Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (X.Y.Z, ohne v-Präfix)"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Version prüfen
+        shell: pwsh
+        run: |
+          if ('${{ inputs.version }}' -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw "Version muss X.Y.Z sein (Eingabe: ${{ inputs.version }})"
+          }
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish (self-contained, kein .NET auf Ziel-PC nötig)
+        shell: pwsh
+        run: >
+          dotnet publish src/BirdyCreditStatus/BirdyCreditStatus.csproj
+          -c Release -r win-x64 --self-contained
+          -o installer/publish/BirdyCreditStatus
+
+      - name: Inno Setup installieren
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Setup.exe kompilieren
+        shell: pwsh
+        run: >
+          &"${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          installer/Setup.iss /DMyAppVersion=${{ inputs.version }}
+
+      - name: Release anlegen
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $asset = "birdy-creditStatus-Setup-${{ inputs.version }}.exe"
+          Copy-Item installer/dist/Setup.exe $asset
+          gh release create "v${{ inputs.version }}" $asset `
+            --title "birdy-creditStatus ${{ inputs.version }}" `
+            --generate-notes
