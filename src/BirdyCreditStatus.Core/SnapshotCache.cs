@@ -24,6 +24,7 @@ public sealed class SnapshotCache
     public void Save(QuotaSnapshot snapshot)
     {
         var all = LoadAllMutable();
+        if (all is null) return; // Unreadable is not empty: don't discard other accounts.
         all[snapshot.Provider] = snapshot;
         Write(all);
     }
@@ -34,8 +35,8 @@ public sealed class SnapshotCache
     /// <summary>Lädt den Eintrag eines Providers oder null.</summary>
     public QuotaSnapshot? Load(string provider)
     {
-        LoadAllMutable().TryGetValue(provider, out var snapshot);
-        return snapshot;
+        var all = LoadAllMutable();
+        return all is not null && all.TryGetValue(provider, out var snapshot) ? snapshot : null;
     }
 
     /// <summary>Migration (F006-T2): übernimmt den Eintrag <c>fromKey</c> auf <c>toKey</c>,
@@ -50,7 +51,7 @@ public sealed class SnapshotCache
         }
 
         var all = LoadAllMutable();
-        if (!all.TryGetValue(fromKey, out var source) || all.ContainsKey(toKey))
+        if (all is null || !all.TryGetValue(fromKey, out var source) || all.ContainsKey(toKey))
         {
             return;
         }
@@ -60,7 +61,8 @@ public sealed class SnapshotCache
     }
 
     /// <summary>Lädt alle Einträge, Schlüssel = Kontoname. Leer bei fehlendem/leerem Cache.</summary>
-    public IReadOnlyDictionary<string, QuotaSnapshot> LoadAll() => LoadAllMutable();
+    public IReadOnlyDictionary<string, QuotaSnapshot> LoadAll() =>
+        LoadAllMutable() ?? new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
 
     /// <summary>Entfernt den Eintrag <c>key</c> (F006-T3: Konto-Entfernen löscht den
     /// Cache-Eintrag mit, andere Einträge bleiben unberührt). Fehlender Schlüssel
@@ -73,27 +75,23 @@ public sealed class SnapshotCache
         }
 
         var all = LoadAllMutable();
-        if (all.Remove(key))
+        if (all is not null && all.Remove(key))
         {
             Write(all);
         }
     }
 
-    private Dictionary<string, QuotaSnapshot> LoadAllMutable()
+    // null means an I/O failure: reads fall back to empty, mutations are skipped.
+    private Dictionary<string, QuotaSnapshot>? LoadAllMutable()
     {
-        if (!File.Exists(_filePath))
-        {
-            return new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
-        }
-
-        var json = File.ReadAllText(_filePath);
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
-        }
-
         try
         {
+            var json = File.ReadAllText(_filePath);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
+            }
+
             using var document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind == JsonValueKind.Object
                 && document.RootElement.TryGetProperty("Provider", out var providerElement)
@@ -112,16 +110,29 @@ public sealed class SnapshotCache
             return JsonSerializer.Deserialize<Dictionary<string, QuotaSnapshot>>(json, JsonOptions)
                 ?? new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
         }
+        catch (FileNotFoundException)
+        {
+            return new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
+        }
         catch (JsonException)
         {
-            // Cache ist unkritisch verlierbar: korrupt → leer, der nächste Poll baut ihn wieder auf.
+            // Cache ist unkritisch verlierbar: korrupt → leer, der nächste Abruf baut ihn wieder auf.
             return new Dictionary<string, QuotaSnapshot>(StringComparer.Ordinal);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
         }
     }
 
-    private void Write(Dictionary<string, QuotaSnapshot> all)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(all, JsonOptions));
-    }
+    private void Write(Dictionary<string, QuotaSnapshot> all) =>
+        AtomicFile.TryWrite(_filePath, JsonSerializer.Serialize(all, JsonOptions));
 }

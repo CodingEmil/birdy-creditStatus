@@ -2,7 +2,9 @@ namespace BirdyCreditStatus.Core;
 
 /// <summary>Konten-Naht A (F006-T1, Tripel seit F007-T1): Liste laden/speichern plus
 /// Anlegen/Entfernen/Umbenennen. Namen sind global über alle Anbieter eindeutig.
-/// Laden wirft nie (fehlend/korrupt = leer bzw. Defaults-Migration).</summary>
+/// Laden wirft nie (fehlend/korrupt = leer bzw. Defaults-Migration).
+/// Add/Remove/Rename melden nur nach erfolgreicher Persistierung true;
+/// false lässt den gespeicherten Zustand unverändert.</summary>
 public interface IAccountStore
 {
     IReadOnlyList<Account> Load();

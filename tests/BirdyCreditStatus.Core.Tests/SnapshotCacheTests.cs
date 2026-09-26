@@ -47,6 +47,24 @@ public sealed class SnapshotCacheTests : IDisposable
         Assert.True(all.ContainsKey("Codex Arbeit"));
     }
 
+    [Fact]
+    public void Locked_cache_reads_as_empty_then_recovers_without_data_loss()
+    {
+        var cache = new SnapshotCache(_directory);
+        cache.Save(new QuotaSnapshot("Claude", [new QuotaWindow("Session", 42)], DateTimeOffset.UtcNow));
+        var path = Path.Combine(_directory, "snapshot.json");
+        var original = File.ReadAllText(path);
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            Assert.Null(cache.Load());
+            Assert.Empty(cache.LoadAll());
+            cache.Migrate("Claude", "renamed");
+            cache.Remove("Claude");
+        }
+        Assert.Equal(original, File.ReadAllText(path));
+        Assert.Equal(42, cache.Load()!.Windows.Single().PercentRemaining);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))

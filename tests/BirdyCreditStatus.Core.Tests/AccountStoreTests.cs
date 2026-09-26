@@ -111,6 +111,30 @@ public sealed class AccountStoreTests : IDisposable
         Assert.Single(store.Load());
     }
 
+    [Theory]
+    [InlineData("[null]")]
+    [InlineData("[null,null]")]
+    public void Null_entries_are_ignored(string json)
+    {
+        WriteAuthFile("accounts.json", json);
+
+        Assert.Empty(HermeticStore().Load());
+    }
+
+    [Fact]
+    public void Null_entries_do_not_discard_valid_and_legacy_accounts()
+    {
+        WriteAuthFile("accounts.json", """
+            [null,{"Provider":"claude","Name":"valid","AuthFilePath":"synthetic.json"},
+             null,{"Name":"legacy","AuthFilePath":"synthetic.json"},null]
+            """);
+
+        var loaded = HermeticStore().Load();
+
+        Assert.Equal(["valid", "legacy"], loaded.Select(a => a.Name));
+        Assert.Equal([AccountProviders.Claude, AccountProviders.Codex], loaded.Select(a => a.Provider));
+    }
+
     [Fact]
     public void Missing_file_with_default_auth_migrates_single_Codex_entry()
     {
@@ -122,6 +146,57 @@ public sealed class AccountStoreTests : IDisposable
         Assert.Single(loaded);
         Assert.Equal("Codex", loaded[0].Name);
         Assert.Equal(authPath, loaded[0].AuthFilePath);
+    }
+
+    [Theory]
+    [InlineData("add")]
+    [InlineData("rename")]
+    [InlineData("remove")]
+    public void Failed_write_returns_false_and_preserves_accounts(string operation)
+    {
+        var store = HermeticStore();
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "existing", "synthetic.json")));
+        var path = Path.Combine(_directory, "accounts.json");
+        var original = File.ReadAllText(path);
+        File.SetAttributes(path, FileAttributes.ReadOnly);
+        try
+        {
+            var succeeded = operation switch
+            {
+                "add" => store.Add(new Account(AccountProviders.Claude, "new", "synthetic.json")),
+                "rename" => store.Rename("existing", "renamed"),
+                _ => store.Remove("existing"),
+            };
+
+            Assert.False(succeeded);
+            Assert.Equal(original, File.ReadAllText(path));
+            Assert.Equal("existing", Assert.Single(store.Load()).Name);
+            Assert.Single(Directory.GetFiles(_directory));
+        }
+        finally
+        {
+            File.SetAttributes(path, FileAttributes.Normal);
+        }
+    }
+
+    [Fact]
+    public void Unreadable_accounts_are_not_overwritten_by_add()
+    {
+        var store = HermeticStore();
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "existing", "synthetic.json")));
+        var path = Path.Combine(_directory, "accounts.json");
+        var original = File.ReadAllText(path);
+        bool succeeded;
+        // Deny reads but allow replacing the file: a swallowed read failure must not
+        // turn into an empty list and then a successful destructive write.
+        using (var locked = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete))
+        {
+            Assert.Empty(store.Load());
+            succeeded = store.Add(new Account(AccountProviders.Claude, "new", "synthetic.json"));
+        }
+
+        Assert.False(succeeded);
+        Assert.Equal(original, File.ReadAllText(path));
     }
 
     [Fact]

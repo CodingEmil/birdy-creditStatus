@@ -37,6 +37,35 @@ public sealed class RefreshServiceTests : IDisposable
         Assert.Equal(previous.FetchedAt, kept.FetchedAt);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cache_io_failure_does_not_discard_live_results(bool readOnly)
+    {
+        var cache = new SnapshotCache(_directory);
+        cache.Save(new QuotaSnapshot("Claude", [new QuotaWindow("Session", 10)], DateTimeOffset.UtcNow));
+        var path = Path.Combine(_directory, "snapshot.json");
+        var original = File.ReadAllText(path);
+        FileStream? locked = null;
+        try
+        {
+            if (readOnly) File.SetAttributes(path, FileAttributes.ReadOnly);
+            else locked = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+            var service = new RefreshService(new FakeClaudeAdapter { SessionPercent = 75 }, cache);
+            var result = await service.RefreshAsync();
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(75, result.Snapshot!.Windows.First().PercentRemaining);
+        }
+        finally
+        {
+            locked?.Dispose();
+            File.SetAttributes(path, FileAttributes.Normal);
+        }
+        Assert.Equal(original, File.ReadAllText(path));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))

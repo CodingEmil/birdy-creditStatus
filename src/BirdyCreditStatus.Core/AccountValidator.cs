@@ -85,6 +85,8 @@ public static class AccountValidator
         && tokens.ValueKind == JsonValueKind.Object
         && tokens.TryGetProperty("access_token", out var access)
         && tokens.TryGetProperty("refresh_token", out var refresh)
+        && access.ValueKind == JsonValueKind.String
+        && refresh.ValueKind == JsonValueKind.String
         && access.GetString() is { Length: > 0 }
         && refresh.GetString() is { Length: > 0 };
 
@@ -95,6 +97,8 @@ public static class AccountValidator
         && oauth.TryGetProperty("refreshToken", out var refresh)
         && oauth.TryGetProperty("expiresAt", out var expires)
         && expires.ValueKind == JsonValueKind.Number
+        && access.ValueKind == JsonValueKind.String
+        && refresh.ValueKind == JsonValueKind.String
         && access.GetString() is { Length: > 0 }
         && refresh.GetString() is { Length: > 0 };
 

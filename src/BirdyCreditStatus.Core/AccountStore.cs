@@ -75,6 +75,7 @@ public sealed class AccountStore : IAccountStore
             }
 
             return entries
+                .OfType<Account>() // JSON arrays may contain null even with non-nullable records.
                 .Select(e => string.IsNullOrWhiteSpace(e.Provider)
                     ? e with { Provider = AccountProviders.Codex }
                     : e)
@@ -87,21 +88,10 @@ public sealed class AccountStore : IAccountStore
         }
     }
 
-    public void Save(IReadOnlyList<Account> accounts)
-    {
-        var valid = accounts.Where(IsValid).ToList();
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-            File.WriteAllText(_filePath, JsonSerializer.Serialize(valid, JsonOptions));
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
+    public void Save(IReadOnlyList<Account> accounts) => TrySave(accounts);
+
+    private bool TrySave(IReadOnlyList<Account> accounts) =>
+        AtomicFile.TryWrite(_filePath, JsonSerializer.Serialize(accounts.Where(IsValid).ToList(), JsonOptions));
 
     public bool Add(Account account)
     {
@@ -117,20 +107,13 @@ public sealed class AccountStore : IAccountStore
         }
 
         all.Add(account);
-        Save(all);
-        return true;
+        return TrySave(all);
     }
 
     public bool Remove(string name)
     {
         var all = Load().ToList();
-        var removed = all.RemoveAll(a => a.Name == name) > 0;
-        if (removed)
-        {
-            Save(all);
-        }
-
-        return removed;
+        return all.RemoveAll(a => a.Name == name) > 0 && TrySave(all);
     }
 
     public bool Rename(string oldName, string newName)
@@ -148,8 +131,7 @@ public sealed class AccountStore : IAccountStore
         }
 
         all[index] = all[index] with { Name = newName };
-        Save(all);
-        return true;
+        return TrySave(all);
     }
 
     private List<Account> MigrateDefaults()

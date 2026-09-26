@@ -1550,7 +1550,13 @@ public sealed partial class PopupWindow : Window
             return;
         }
 
-        _accounts.Remove(name);
+        if (!_accounts.Remove(name))
+        {
+            await ShowUpdateNoteAsync(
+                $"„{name}“ konnte nicht entfernt werden — bitte Dateirechte prüfen und erneut versuchen.",
+                "Konto entfernen");
+            return;
+        }
         _refresh.RemoveAdapter(name);
         _cache.Remove(name);
         Render(await _refresh.RefreshAllAsync());

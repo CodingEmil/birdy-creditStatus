@@ -115,6 +115,40 @@ public sealed class AccountValidatorTests : IDisposable
         Assert.NotNull(AccountValidator.ValidateAuthFile("fremd", path));
     }
 
+    [Theory]
+    [InlineData("123")]
+    [InlineData("true")]
+    [InlineData("{}")]
+    [InlineData("[]")]
+    [InlineData("null")]
+    public void Wrong_token_field_types_return_validation_errors(string invalid)
+    {
+        foreach (var field in new[] { "access_token", "refresh_token" })
+        {
+            var tokens = new System.Text.Json.Nodes.JsonObject
+            {
+                ["access_token"] = "synthetic-access",
+                ["refresh_token"] = "synthetic-refresh",
+            };
+            tokens[field] = System.Text.Json.Nodes.JsonNode.Parse(invalid);
+            var path = WriteFile("codex-invalid.json", "{\"tokens\":" + tokens.ToJsonString() + "}");
+            Assert.NotNull(AccountValidator.ValidateAuthFile(AccountProviders.Codex, path));
+        }
+
+        foreach (var field in new[] { "accessToken", "refreshToken" })
+        {
+            var tokens = new System.Text.Json.Nodes.JsonObject
+            {
+                ["accessToken"] = "synthetic-access",
+                ["refreshToken"] = "synthetic-refresh",
+                ["expiresAt"] = 99,
+            };
+            tokens[field] = System.Text.Json.Nodes.JsonNode.Parse(invalid);
+            var path = WriteFile("claude-invalid.json", "{\"claudeAiOauth\":" + tokens.ToJsonString() + "}");
+            Assert.NotNull(AccountValidator.ValidateAuthFile(AccountProviders.Claude, path));
+        }
+    }
+
     private string WriteFile(string name, string content)
     {
         Directory.CreateDirectory(_directory);
