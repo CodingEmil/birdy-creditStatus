@@ -842,13 +842,13 @@ public sealed partial class PopupWindow : Window
         var title = new TextBlock { FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
         var badge = new TextBlock { FontSize = 11, Opacity = 0.6 };
         // Karten-Menü wie auf der statischen Codex-Karte (F006-T3): Umbenennen/Entfernen
-        // je Konto. Tag trägt den Kontonamen, damit die gemeinsamen Handler das Ziel kennen.
+        // je Konto. Der typisierte Account-Tag kann nicht mit Provider-IDs kollidieren.
         var menuButton = new Button
         {
             Content = "\uE712",
             FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets"),
             HorizontalAlignment = HorizontalAlignment.Right,
-            Tag = account.Name,
+            Tag = account,
         };
         try
         {
@@ -860,9 +860,9 @@ public sealed partial class PopupWindow : Window
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
         }
-        var renameItem = new MenuFlyoutItem { Text = "Umbenennen", Tag = account.Name };
+        var renameItem = new MenuFlyoutItem { Text = "Umbenennen", Tag = account };
         renameItem.Click += OnRenameAccountClicked;
-        var removeItem = new MenuFlyoutItem { Text = "Entfernen", Tag = account.Name };
+        var removeItem = new MenuFlyoutItem { Text = "Entfernen", Tag = account };
         removeItem.Click += OnRemoveAccountClicked;
         var flyout = new MenuFlyout();
         flyout.Items.Add(renameItem);
@@ -1238,16 +1238,9 @@ public sealed partial class PopupWindow : Window
     }
 
     /// <summary>Löst ein Menü-Tag auf den Kontonamen auf (F007-T3): Extras tragen den
-    /// Namen, statische Karten die Provider-Kennung (→ jeweils erstes Konto).</summary>
-    private string? ResolveAccountTarget(string? tag)
-    {
-        if (AccountProviders.IsKnown(tag))
-        {
-            return OrderedAccounts().FirstOrDefault(a => a.Provider == tag)?.Name;
-        }
-
-        return tag;
-    }
+    /// Account-Datensatz, statische Karten die Provider-Kennung (→ jeweils erstes Konto).</summary>
+    private string? ResolveAccountTarget(object? tag) =>
+        AccountMenuTarget.Resolve(tag, OrderedAccounts());
 
     private IReadOnlyList<string> ExistingAccountNames() =>
         _accounts.Load()
@@ -1446,8 +1439,7 @@ public sealed partial class PopupWindow : Window
     /// Cache wandern mit), Datei und übrige Karten unberührt.</summary>
     private async void OnRenameAccountClicked(object sender, RoutedEventArgs e)
     {
-        var oldName = ResolveAccountTarget((sender as MenuFlyoutItem)?.Tag as string)
-            ?? OrderedAccounts().FirstOrDefault(a => a.Provider == AccountProviders.Codex)?.Name;
+        var oldName = ResolveAccountTarget((sender as MenuFlyoutItem)?.Tag);
         if (string.IsNullOrWhiteSpace(oldName))
         {
             return;
@@ -1523,8 +1515,7 @@ public sealed partial class PopupWindow : Window
     /// nie die Auth-Datei selbst. Wirkt sofort (Abruf + Render, D010-Pfad).</summary>
     private async void OnRemoveAccountClicked(object sender, RoutedEventArgs e)
     {
-        var name = ResolveAccountTarget((sender as MenuFlyoutItem)?.Tag as string)
-            ?? OrderedAccounts().FirstOrDefault(a => a.Provider == AccountProviders.Codex)?.Name;
+        var name = ResolveAccountTarget((sender as MenuFlyoutItem)?.Tag);
         if (string.IsNullOrWhiteSpace(name))
         {
             return;
