@@ -9,10 +9,32 @@ namespace BirdyCreditStatus.Core;
 internal static class CredentialRefreshLock
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Files = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> Keys = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConditionalWeakTable<object, SemaphoreSlim> Stores = new();
 
     public static Task<IDisposable> AcquireFileAsync(string path, CancellationToken cancellationToken) =>
         AcquireAsync(Files.GetOrAdd(Path.GetFullPath(path), _ => new SemaphoreSlim(1, 1)), cancellationToken);
+
+    /// <summary>Gate für Pi-Sections (F011-T3): ein Lock pro Datei+Section, getrennt von
+    /// den Datei-Gates (Pi speichert nie, serialisiert aber parallele Rotation).
+    /// Wirft nie (unbrauchbarer Pfad fällt auf den Rohtext zurück).</summary>
+    public static Task<IDisposable> AcquirePiSectionAsync(string? path, string? section, CancellationToken cancellationToken) =>
+        AcquireAsync(Keys.GetOrAdd(PiSectionKey(path, section), _ => new SemaphoreSlim(1, 1)), cancellationToken);
+
+    private static string PiSectionKey(string? path, string? section)
+    {
+        string file;
+        try
+        {
+            file = string.IsNullOrWhiteSpace(path) ? string.Empty : Path.GetFullPath(path);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            file = path ?? string.Empty;
+        }
+
+        return "pi:" + file + "\0" + section;
+    }
 
     public static Task<IDisposable> AcquireStoreAsync(object store, CancellationToken cancellationToken) =>
         AcquireAsync(Stores.GetValue(store, _ => new SemaphoreSlim(1, 1)), cancellationToken);
