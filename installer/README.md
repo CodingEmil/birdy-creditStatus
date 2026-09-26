@@ -34,9 +34,13 @@ dotnet publish src/BirdyCreditStatus/BirdyCreditStatus.csproj `
   — derselbe Key wie `RegistryAutostartStore` (T1); Tray-Haken und Checkbox teilen ihn
 - Schlussseite „Jetzt starten" (Standard **an**)
 - Schließt eine laufende Instanz vor dem Kopieren (`taskkill`, sonst file-in-use)
-- Bootstrapper: fehlt die Windows-App-SDK-Runtime, lädt das Setup
-  `windowsappruntimeinstall-x64.exe` nach und installiert still (`--quiet --force`);
-  ohne Internet bricht es mit Hinweis ab (online only, D011)
+- Bootstrapper: prüft die stabile Microsoft-Framework-Familie
+  `Microsoft.WindowsAppRuntime.2_8wekyb3d8bbwe`, Architektur X64, Status `Ok`,
+  Version mindestens **2.5.1.0**. Alte 1.x-, x86-, CBS- und Preview-Pakete genügen
+  nicht. Kompatible neuere 2.x-Versionen bleiben erlaubt (SDK-Bootstrap-Regel).
+  Fehlt die passende Runtime, wird `windowsappruntimeinstall-x64.exe` nachgeladen
+  und still installiert (`--quiet --force`); ohne Internet Hinweis (D011).
+  Query-/Prozessfehler zählen nie als erfolgreicher Nachweis.
 - Deinstall: entfernt Key + Programmdateien; `%APPDATA%\birdy-creditStatus\`
   (Cache) **bleibt**; fremde Credential-Dateien werden nie angefasst
 
@@ -48,5 +52,23 @@ dotnet publish src/BirdyCreditStatus/BirdyCreditStatus.csproj `
 - CI-Release: Actions → „Release Setup" → Version eingeben — überschreibt per
   `/DMyAppVersion`, legt Tag `vX.Y.Z` + Release mit
   `birdy-creditStatus-Setup-X.Y.Z.exe` an (manueller Trigger, nur nach Major-Update)
-- `WinAppSdkUrl` mitziehen, wenn `Microsoft.WindowsAppSDK` (NuGet) ein neues
-  Major/Minor bekommt (Runtime-Linie 2.5 ↔ SDK 2.5.1)
+- `WinAppSdkUrl` **und** die Prüfung in `Test-WindowsAppRuntime.ps1` bei SDK-Updates
+  mitziehen. Maßgeblich: NuGet `Microsoft.WindowsAppSDK.Runtime` →
+  `include/WindowsAppSDK-VersionInfo.cs` (Framework-Familie, Publisher und
+  `Runtime.Version.DotQuadString`), nicht eine aus der NuGet-Versionsnummer
+  geratene Paketidentität.
+
+## Runtime-Prüfung testen
+
+```powershell
+# 19 synthetische Fälle, inklusive Exit-Codes bei Query-Fehlern; kein Pester nötig:
+powershell -NoProfile -ExecutionPolicy Bypass -File installer/tests/Test-WindowsAppRuntime.Tests.ps1
+# Optional: tatsächliche Pakete dieses Rechners nur abfragen (0 = vorhanden,
+# 1 = keine passende Runtime, 2 = Abfragefehler), nichts installieren:
+powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File installer/Test-WindowsAppRuntime.ps1
+```
+
+Das Setup extrahiert die getestete PS1 als temporäre Bootstrap-Prüfung (`dontcopy`),
+statt die Paketlogik als zweite Kopie in Inno zu pflegen. Nach dem Runtime-Download
+wird dieselbe Prüfung erneut ausgeführt. Eine vollständige Installation auf einem
+frischen Windows-Rechner ist zusätzlich manuell abzunehmen.

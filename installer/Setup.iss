@@ -63,6 +63,8 @@ Name: autostart; Description: "Mit Windows starten"; GroupDescription: "Autostar
 
 [Files]
 Source: "publish\BirdyCreditStatus\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
+; Extract only for the bootstrap probe; not installed into the application directory.
+Source: "Test-WindowsAppRuntime.ps1"; Flags: dontcopy
 
 [Icons]
 ; Nur Startmenü — bewusst kein Desktop-Icon (D011).
@@ -85,13 +87,20 @@ function HasWindowsAppRuntime: Boolean;
 var
   ResultCode: Integer;
 begin
-  { Get-AppxPackage (pro Benutzer, ohne Admin): irgendeine
-    Microsoft.WindowsAppRuntime.*-Familie genügt (1.x und 2.x). }
-  Exec('powershell.exe',
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ' +
-    '"if (Get-AppxPackage -Name ''Microsoft.WindowsAppRuntime.*'') { exit 0 } else { exit 1 }"',
-    '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Result := ResultCode = 0;
+  { Fail closed: exact stable framework identity, X64, healthy status and minimum
+    package version. Predicate and synthetic tests live in the extracted script. }
+  Result := False;
+  ResultCode := -1;
+  try
+    ExtractTemporaryFile('Test-WindowsAppRuntime.ps1');
+    if Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+      '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+      ExpandConstant('{tmp}\Test-WindowsAppRuntime.ps1') + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+      Result := ResultCode = 0;
+  except
+    Result := False;
+  end;
 end;
 
 function EnsureWindowsAppRuntime: String;
