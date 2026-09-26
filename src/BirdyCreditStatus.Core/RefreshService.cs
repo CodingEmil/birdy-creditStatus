@@ -5,7 +5,15 @@ namespace BirdyCreditStatus.Core;
 /// Schlüssel = Kontoname (F006-T2, generische Naht: ein Adapter je Konto).</summary>
 public sealed class RefreshService
 {
-    private readonly Dictionary<string, IQuotaAdapter> _adapters;
+    private sealed class Registration(IQuotaAdapter adapter)
+    {
+        public IQuotaAdapter Adapter { get; } = adapter;
+        public QuotaResult? Result { get; set; }
+        public long Generation { get; set; }
+    }
+
+    private readonly object _gate = new();
+    private readonly Dictionary<string, Registration> _adapters;
     private readonly SnapshotCache _cache;
 
     /// <summary>Alt-Pfad (F001): ein Adapter, Ergebnis über <see cref="RefreshAsync"/>.</summary>
@@ -17,7 +25,7 @@ public sealed class RefreshService
     /// <summary>Multi-Pfad (F002): ein Adapter je Provider, Schlüssel = Provider-Name.</summary>
     public RefreshService(IReadOnlyDictionary<string, IQuotaAdapter> adapters, SnapshotCache cache)
     {
-        _adapters = new Dictionary<string, IQuotaAdapter>(adapters, StringComparer.Ordinal);
+        _adapters = adapters.ToDictionary(p => p.Key, p => new Registration(p.Value), StringComparer.Ordinal);
         _cache = cache;
     }
 
@@ -30,12 +38,21 @@ public sealed class RefreshService
             return;
         }
 
-        _adapters[key] = adapter;
+        lock (_gate)
+        {
+            _adapters[key] = new Registration(adapter);
+        }
     }
 
     /// <summary>Entfernt einen Konto-Adapter (F006-T3: Entfernen ohne Neustart).
     /// Gibt false zurück, wenn der Schlüssel nicht registriert war.</summary>
-    public bool RemoveAdapter(string key) => !string.IsNullOrWhiteSpace(key) && _adapters.Remove(key);
+    public bool RemoveAdapter(string key)
+    {
+        lock (_gate)
+        {
+            return !string.IsNullOrWhiteSpace(key) && _adapters.Remove(key);
+        }
+    }
 
     /// <summary>Alt-Pfad (F001): ruft den einzigen Adapter ab.</summary>
     public async Task<QuotaResult> RefreshAsync(CancellationToken cancellationToken = default)
@@ -45,37 +62,53 @@ public sealed class RefreshService
     }
 
     /// <summary>Ruft jeden Adapter parallel ab (D010: nur bei Öffnen + Refresh, kein Timer),
-    /// Schlüssel = Kontoname. Nur Erfolge überschreiben den jeweiligen Cache-Eintrag.</summary>
+    /// Schlüssel = Kontoname. Nur die jüngste gestartete Generation einer noch
+    /// registrierten Karte darf Cache/Ergebnis aktualisieren; Netzwerk bleibt parallel.</summary>
     public async Task<IReadOnlyDictionary<string, QuotaResult>> RefreshAllAsync(
         CancellationToken cancellationToken = default)
     {
-        var fetches = _adapters.Select(async kvp =>
+        (string Key, Registration Entry, long Generation)[] registrations;
+        lock (_gate)
+        {
+            registrations = _adapters.Select(p => (p.Key, p.Value, ++p.Value.Generation)).ToArray();
+        }
+
+        var fetches = registrations.Select(async pending =>
         {
             QuotaResult result;
             try
             {
-                result = await kvp.Value.FetchAsync(cancellationToken);
+                result = await pending.Entry.Adapter.FetchAsync(cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 result = new QuotaResult(false, null, "n/a – Key prüfen / offline");
             }
 
-            return (Key: kvp.Key, Result: result);
+            return (Pending: pending, Result: result);
         }).ToList();
 
         var fetched = await Task.WhenAll(fetches);
-        var results = new Dictionary<string, QuotaResult>(StringComparer.Ordinal);
-        foreach (var (key, result) in fetched)
+        lock (_gate)
         {
-            if (result.IsSuccess && result.Snapshot is not null)
+            foreach (var (pending, result) in fetched)
             {
-                _cache.Save(result.Snapshot);
+                if (!_adapters.TryGetValue(pending.Key, out var current)
+                    || !ReferenceEquals(current, pending.Entry)
+                    || current.Generation != pending.Generation)
+                {
+                    continue; // Removed, replaced or superseded while awaiting the provider.
+                }
+                if (result.IsSuccess && result.Snapshot is not null)
+                {
+                    _cache.Save(result.Snapshot);
+                }
+                current.Result = result;
             }
 
-            results[key] = result;
+            // Even a superseded caller receives the valid current state for rendering.
+            return _adapters.Where(p => p.Value.Result is not null)
+                .ToDictionary(p => p.Key, p => p.Value.Result!, StringComparer.Ordinal);
         }
-
-        return results;
     }
 }
