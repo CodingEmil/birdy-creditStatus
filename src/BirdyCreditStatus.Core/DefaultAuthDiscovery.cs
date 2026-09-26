@@ -1,7 +1,9 @@
 namespace BirdyCreditStatus.Core;
 
-/// <summary>Gefundener Standard-Login (F010-T1): Anbieter-Kennung, Anzeigename und Pfad.</summary>
-public sealed record DetectedAuth(string Provider, string DisplayName, string Path);
+/// <summary>Gefundener Standard-Login (F010-T1, F011-T1): Anbieter-Kennung, Anzeigename,
+/// Pfad und optionale Pi-Section (null = native Datei, gesetzt = Treffer aus einer
+/// Pi-Datei, 1 Pfad → N Kandidaten).</summary>
+public sealed record DetectedAuth(string Provider, string DisplayName, string Path, string? Section = null);
 
 /// <summary>Erkennung vorhandener Standard-Logins (F010-T1): scannt nur die drei
 /// Default-Pfade, Format-Check je Marker via <see cref="AccountValidator"/>, Go nur
