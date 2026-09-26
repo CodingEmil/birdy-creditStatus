@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Eisvogel 02 — Geometrisch</title>
+  <desc>A kingfisher reduced to angular planes: spear-shaped bill, compact orange breast, short blue tail and turquoise crown.</desc>
+  <path fill="#195979" d="M65 170L105 196L37 226L19 217Z"/>
+  <path d="M104 204L99 225L112 229M129 199L124 224L137 228" fill="none" stroke="#C47641" stroke-width="4" stroke-linecap="square"/>
+  <path fill="#466D80" d="M168 60L246 77L168 83Z"/>
+  <path fill="#159EBC" d="M36 196L61 129L89 85L91 54L118 29L150 29L174 48L180 74L168 97L173 130L153 172L124 207L97 213L67 203Z"/>
+  <path fill="#50D7CC" d="M91 54L118 29L150 29L169 47L123 43L97 72Z"/>
+  <path fill="#F1A04C" d="M168 97L173 130L153 172L124 207L97 213L67 203L107 167L131 123Z"/>
+  <path fill="#DC7E35" d="M173 130L153 172L124 207L97 213L139 165Z"/>
+  <path fill="#FFF1D9" d="M164 86L171 110L169 123L147 105Z"/>
+  <path fill="#E78938" d="M118 69L143 78L158 72L163 88L139 98L119 88Z"/>
+  <path fill="#FFF1D9" d="M111 77L123 91L110 103L103 90Z"/>
+  <path fill="#226484" d="M36 196L68 137L102 107L129 99L137 119L116 151L76 183Z"/>
+  <path fill="#328FB0" d="M68 137L102 107L129 99L116 124Z"/>
+  <path fill="#49C7CE" d="M89 89L98 94L61 156L36 196L61 129Z"/>
+  <circle fill="#123447" cx="155" cy="60" r="5"/>
+</svg>

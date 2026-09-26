@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Eisvogel 03 — Outline</title>
+  <desc>A restrained kingfisher drawn in teal contour lines with a single warm orange breast accent; transparent negative space replaces feather detail.</desc>
+  <path fill="#EBA05C" d="M170 91C181 117 171 148 153 173C136 199 119 210 101 210C87 210 76 205 66 199C100 180 111 150 126 125C139 107 153 96 170 91Z"/>
+  <g fill="none" stroke="#3299AC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M37 194C47 154 66 116 88 87C83 66 94 42 111 34C132 24 157 30 170 45C177 54 180 65 175 79L168 93C181 117 171 148 153 173C136 199 118 212 99 210C82 209 68 202 56 197"/>
+    <path d="M176 63L241 75L175 83"/>
+    <path d="M56 194L24 220L39 225L81 204"/>
+    <path d="M41 192C64 189 91 174 112 150C130 129 139 110 123 102C100 93 72 135 57 162"/>
+  </g>
+  <path d="M100 209L96 225L108 229M123 204L120 224L133 228" fill="none" stroke="#D98A4C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle fill="#3299AC" cx="154" cy="61" r="5"/>
+</svg>

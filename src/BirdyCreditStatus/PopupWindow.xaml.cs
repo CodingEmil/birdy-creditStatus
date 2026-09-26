@@ -46,6 +46,7 @@ public sealed partial class PopupWindow : Window
         HttpClient? http = null)
     {
         InitializeComponent();
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "TrayIcon.ico"));
         _refresh = refresh;
         _cache = cache;
         _accounts = accountStore ?? new AccountStore();

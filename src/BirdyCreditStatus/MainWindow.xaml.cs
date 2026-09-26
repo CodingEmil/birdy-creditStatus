@@ -31,6 +31,7 @@ public sealed partial class MainWindow : Window
     public MainWindow(IAutostartStore? autostartStore = null, IAccountStore? accountStore = null)
     {
         InitializeComponent();
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "TrayIcon.ico"));
         _autostartMenu = new AutostartMenu(autostartStore ?? new RegistryAutostartStore());
         AutostartItem.IsChecked = _autostartMenu.IsChecked;
         ToggleAutostartCommand = new RelayCommand(() =>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Birdy Credit Status — Eisvogel</title>
+  <desc>A minimalist common kingfisher in side profile: a large head, long straight bill, compact body and short tail, with blue-turquoise upperparts, orange breast and cheek, and ivory throat markings.</desc>
+  <!-- Species-defining silhouette and plumage, reduced to flat shapes for the Windows tray. -->
+  <path fill="#17688D" d="M62 169L97 195L36 225L19 220Z"/>
+  <path d="M98 201L93 224L105 228M93 224L86 227M123 201L118 224L131 227M118 224L111 228" fill="none" stroke="#B95F3F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path fill="#3F6072" d="M172 61L246 74L173 83Z"/>
+  <path fill="#138EAE" d="M34 197C43 158 63 114 87 86C85 71 88 52 103 39C121 23 147 25 163 36C178 46 182 62 177 77L169 92C179 108 177 134 164 158C146 193 124 213 99 211C73 211 49 198 34 197Z"/>
+  <path fill="#ED9447" d="M169 89C179 107 177 133 164 158C146 193 124 213 99 211C87 211 76 207 67 202C91 187 108 166 120 141C130 118 145 100 169 89Z"/>
+  <path fill="#F5EDDA" d="M170 88C176 98 177 110 174 122C164 118 157 110 154 102Z"/>
+  <path fill="#DB8038" d="M114 70C127 76 142 77 156 73L163 86C148 98 132 101 121 91Z"/>
+  <path fill="#F5EDDA" d="M112 77L125 92L115 103L103 89Z"/>
+  <path fill="#3ED2D0" d="M92 95C72 124 56 157 42 190L34 197C44 157 66 116 86 91Z"/>
+  <path fill="#17688D" d="M123 99C105 90 85 108 69 131C53 154 42 177 34 197C65 193 94 174 114 148C128 129 134 111 123 99Z"/>
+  <path fill="#259CC1" d="M121 103C109 103 93 116 82 132C96 120 108 114 121 113Z"/>
+  <circle fill="#102E42" cx="155" cy="61" r="5"/>
+</svg>

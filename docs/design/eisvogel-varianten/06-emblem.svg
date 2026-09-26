@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Eisvogel 06 — Emblem</title>
+  <desc>A close-up kingfisher portrait inside a midnight-blue circular badge. Larger color areas and a pale spear-shaped bill favor recognition at tray sizes.</desc>
+  <defs>
+    <clipPath id="badge"><circle cx="128" cy="128" r="116"/></clipPath>
+  </defs>
+  <circle cx="128" cy="128" r="116" fill="#142F43"/>
+  <g clip-path="url(#badge)">
+    <path fill="#D1E2DF" d="M164 95L237 119L163 130Z"/>
+    <path fill="#1DA8B7" d="M38 219C47 176 61 141 83 115C79 97 80 77 94 62C110 44 135 43 153 51C173 61 181 82 175 102L164 125C178 153 163 191 141 215L110 244L60 235Z"/>
+    <path fill="#F0A055" d="M164 125C178 153 163 191 141 215L110 244L60 235C94 211 115 184 129 157Z"/>
+    <path fill="#F8EFDA" d="M165 123C171 133 173 147 169 161C160 156 151 148 148 139Z"/>
+    <path fill="#E18B43" d="M106 100C122 108 139 109 154 104L161 119C146 132 126 136 113 122Z"/>
+    <path fill="#F8EFDA" d="M103 109L116 124L104 137L93 123Z"/>
+    <path fill="#5CDBCB" d="M83 123L96 132C78 157 61 191 49 225L36 225C47 184 63 148 83 123Z"/>
+    <path fill="#246680" d="M121 138C102 132 82 152 65 179C52 199 42 220 37 238C72 229 99 207 117 179C128 161 132 145 121 138Z"/>
+    <circle fill="#123044" cx="150" cy="88" r="6"/>
+  </g>
+  <circle cx="128" cy="128" r="116" fill="none" stroke="#446F83" stroke-width="3"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>Eisvogel 04 — Papier-Look / Im Flug</title>
+  <desc>A dynamic kingfisher banking into a dive, with swept blue wings, an orange underside and a long pointed bill. Overlapping, paper-like flowing shapes replace feather detail.</desc>
+  <path fill="#176588" d="M106 121C98 82 116 48 147 25C151 62 150 96 161 128Z"/>
+  <path fill="#208EB1" d="M144 35C131 69 132 96 145 120L158 126C149 94 149 61 147 25Z"/>
+  <path fill="#176588" d="M65 149L93 171L30 201L15 192Z"/>
+  <path fill="#42CFC9" d="M65 157L75 169L26 193Z"/>
+  <path fill="#42697C" d="M194 128L246 177L191 148Z"/>
+  <path fill="#149DB5" d="M48 161C69 137 108 116 137 122C143 108 156 99 171 100C192 102 204 120 200 139C197 154 182 167 164 176C136 190 105 184 84 175Z"/>
+  <path fill="#F0A052" d="M194 146C188 159 177 169 164 176C136 190 105 184 84 175C115 171 139 156 159 139Z"/>
+  <path fill="#F8EFDC" d="M194 142C190 151 184 156 178 160L161 147L177 135Z"/>
+  <path fill="#D87A36" d="M157 121C165 130 177 133 188 130L191 142C179 150 164 143 155 135Z"/>
+  <path fill="#31BEC5" d="M151 149C128 132 105 118 83 104C62 88 52 60 53 26C83 41 107 59 124 83C139 105 148 129 151 149Z"/>
+  <path fill="#13749B" d="M53 26C60 70 78 94 101 111C118 124 135 137 151 149C129 150 100 136 78 115C55 93 44 62 53 26Z"/>
+  <path fill="#61DED1" d="M61 41C83 56 102 75 116 96C96 77 77 62 61 41Z"/>
+  <circle fill="#123345" cx="182" cy="123" r="5"/>
+</svg>
