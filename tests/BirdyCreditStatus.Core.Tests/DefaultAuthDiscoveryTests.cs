@@ -196,6 +196,27 @@ public sealed class DefaultAuthDiscoveryTests : IDisposable
     }
 
     [Fact]
+    public void ExcludeConfiguredSections_removes_configured_pairs_only()
+    {
+        var hits = new[]
+        {
+            new DetectedAuth(AccountProviders.Claude, "Claude", "C:\\pi\\auth.json", "anthropic"),
+            new DetectedAuth(AccountProviders.Codex, "Codex", "C:\\pi\\auth.json", "openai-codex"),
+            new DetectedAuth(AccountProviders.Codex, "Codex", "C:\\nativ\\codex.json", null),
+        };
+        var accounts = new[]
+        {
+            new Account(AccountProviders.Codex, "Pi Codex", "c:\\PI\\auth.json", "openai-codex"),
+        };
+
+        var remaining = DefaultAuthDiscovery.ExcludeConfiguredSections(hits, accounts);
+
+        Assert.Equal(2, remaining.Count);
+        Assert.DoesNotContain(remaining, c => c.Section == "openai-codex");
+        Assert.Empty(DefaultAuthDiscovery.ExcludeConfiguredSections(null, null));
+    }
+
+    [Fact]
     public void Missing_pi_file_yields_native_only()
     {
         var native = WriteAuthFile("codex.json", """{"tokens":{"access_token":"a","refresh_token":"r"}}""");

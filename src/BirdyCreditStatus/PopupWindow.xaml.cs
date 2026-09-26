@@ -1321,13 +1321,22 @@ public sealed partial class PopupWindow : Window
             piBox.Children.Clear();
             var current = pathBox.Text.Trim();
             piDetectedPath = current;
-            var hits = PiAuthDiscovery.DetectFile(current);
+            // Bereits eingerichtete Paare nicht erneut anbieten (#46, wie Erkennen).
+            var hits = DefaultAuthDiscovery.ExcludeConfiguredSections(
+                PiAuthDiscovery.DetectFile(current), _accounts.Load());
             if (hits.Count == 0)
             {
-                piLabel.Visibility = Visibility.Collapsed;
+                var hasPiSections = PiAuthDiscovery.DetectFile(current).Count > 0;
+                piLabel.Text = hasPiSections
+                    ? "Alle Treffer dieser Pi-Datei sind bereits als Konten eingerichtet."
+                    : "Treffer in dieser Pi-Datei — wählen, Namen bei Bedarf anpassen";
+                piLabel.Visibility = hasPiSections ? Visibility.Visible : Visibility.Collapsed;
                 piBox.Visibility = Visibility.Collapsed;
+                nameBox.IsEnabled = true;
                 return;
             }
+            piLabel.Text = "Treffer in dieser Pi-Datei — wählen, Namen bei Bedarf anpassen";
+            nameBox.IsEnabled = false;
             var suggestions = PiAccountNames.Suggest(hits, ExistingAccountNames());
             for (var i = 0; i < hits.Count; i++)
             {
@@ -1383,16 +1392,27 @@ public sealed partial class PopupWindow : Window
                 piBox.Children.Clear();
                 piLabel.Visibility = Visibility.Collapsed;
                 piBox.Visibility = Visibility.Collapsed;
+                nameBox.IsEnabled = true;
             }
         };
         pathBox.LostFocus += (_, _) => RefreshPiHits();
         foundBox.SelectionChanged += (_, _) =>
         {
-            if ((foundBox.SelectedItem as ComboBoxItem)?.Tag is DetectedAuth pick)
+            var tag = (foundBox.SelectedItem as ComboBoxItem)?.Tag;
+            if (tag is DetectedAuth pick)
             {
                 SelectProvider(providerBox, pick.Provider);
                 pathBox.Text = pick.Path;
                 piSection = pick.Section;
+                errorText.Visibility = Visibility.Collapsed;
+                RefreshPiHits();
+            }
+            else if (tag is string piPath)
+            {
+                // Gruppierter Pi-Dateieintrag: Checkbox-Liste darunter übernimmt
+                // (Provider je Zeile, Einzel-Namefeld ist dann gegenstandslos).
+                pathBox.Text = piPath;
+                piSection = null;
                 errorText.Visibility = Visibility.Collapsed;
                 RefreshPiHits();
             }
@@ -1422,14 +1442,24 @@ public sealed partial class PopupWindow : Window
                 return;
             }
             foundBox.Items.Clear();
-            foreach (var candidate in found)
+            // Native Treffer einzeln; Pi-Treffer gruppiert je Datei (ein Eintrag
+            // öffnet die Checkbox-Liste, statt den Pfad je Section zu wiederholen).
+            foreach (var candidate in found.Where(c => c.Section is null))
             {
                 foundBox.Items.Add(new ComboBoxItem
                 {
-                    Content = candidate.Section is null
-                        ? $"{candidate.DisplayName} — {candidate.Path}"
-                        : $"{candidate.DisplayName} — {candidate.Path} ({candidate.Section})",
+                    Content = $"{candidate.DisplayName} — {candidate.Path}",
                     Tag = candidate,
+                });
+            }
+            foreach (var group in found.Where(c => c.Section is not null)
+                .GroupBy(c => c.Path, StringComparer.OrdinalIgnoreCase))
+            {
+                var count = group.Count();
+                foundBox.Items.Add(new ComboBoxItem
+                {
+                    Content = $"Pi-Datei — {group.Key} ({count} Treffer)",
+                    Tag = group.Key,
                 });
             }
             foundBox.SelectedIndex = -1;
@@ -1464,6 +1494,21 @@ public sealed partial class PopupWindow : Window
             CloseButtonText = "Abbrechen",
             XamlRoot = Content.XamlRoot,
         };
+        // Gleiches Pi-Key-Material nur einmal (#46): benennt das vorhandene Konto.
+        // Native Einzelkonten (Section null) teilen Dateien weiter (D012).
+        string? PiPairTakenError(string provider, string path, string? section)
+        {
+            if (section is null)
+            {
+                return null;
+            }
+            var existing = _accounts.Load().FirstOrDefault(a =>
+                string.Equals(a.AuthFilePath, path, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(a.AuthSection, section, StringComparison.Ordinal));
+            return existing is null
+                ? null
+                : $"„{section}“ aus dieser Datei ist bereits als „{existing.Name}“ eingerichtet.";
+        }
         var confirmed = false;
         var added = new List<Account>();
         dialog.PrimaryButtonClick += (_, args) =>
@@ -1522,7 +1567,8 @@ public sealed partial class PopupWindow : Window
             var name = nameBox.Text.Trim();
             var path = pathBox.Text.Trim();
             var single = AccountValidator.ValidateName(name, ExistingAccountNames())
-                ?? AccountValidator.ValidateAuthFile(provider, path, piSection);
+                ?? AccountValidator.ValidateAuthFile(provider, path, piSection)
+                ?? PiPairTakenError(provider, path, piSection);
             if (single is not null)
             {
                 args.Cancel = true;

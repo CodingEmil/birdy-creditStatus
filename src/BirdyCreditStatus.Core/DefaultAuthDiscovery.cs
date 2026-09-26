@@ -52,6 +52,18 @@ public static class DefaultAuthDiscovery
         return found;
     }
 
+    /// <summary>Filtert bereits eingerichtete (Pfad, Section)-Paare aus Treffern
+    /// (F011-Bugfix #46, gleiche Quelle wie Auto-Erkennen): Gleiches Key-Material
+    /// wird nicht erneut angeboten. Native Treffer (Section null) passieren immer —
+    /// native Dateiteilung bleibt erlaubt (D012). Nie Throw.</summary>
+    public static IReadOnlyList<DetectedAuth> ExcludeConfiguredSections(
+        IEnumerable<DetectedAuth>? hits,
+        IEnumerable<Account>? accounts)
+    {
+        var list = accounts?.ToList() ?? [];
+        return (hits ?? []).Where(c => !list.Any(a => IsConfiguredPair(a, c))).ToList();
+    }
+
     private static IReadOnlyList<DetectedAuth> DetectPiHits(string? piPath, IReadOnlyList<Account> accounts)
     {
         if (string.IsNullOrWhiteSpace(piPath))
@@ -60,14 +72,8 @@ public static class DefaultAuthDiscovery
         }
 
         var hits = new List<DetectedAuth>();
-        foreach (var candidate in PiAuthDiscovery.DetectFile(piPath))
+        foreach (var candidate in ExcludeConfiguredSections(PiAuthDiscovery.DetectFile(piPath), accounts))
         {
-            if (accounts.Any(a => string.Equals(a.AuthFilePath, candidate.Path, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(EffectiveSection(a), candidate.Section, StringComparison.Ordinal)))
-            {
-                continue;
-            }
-
             try
             {
                 if (AccountValidator.ValidateAuthFile(candidate.Provider, candidate.Path, candidate.Section) is not null)
@@ -85,6 +91,11 @@ public static class DefaultAuthDiscovery
 
         return hits;
     }
+
+    private static bool IsConfiguredPair(Account account, DetectedAuth candidate) =>
+        candidate.Section is not null
+        && string.Equals(account.AuthFilePath, candidate.Path, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(EffectiveSection(account), candidate.Section, StringComparison.Ordinal);
 
     /// <summary>Belegte Section eines Kontos: Pi-Section oder — für native Go-Konten,
     /// die stets die <c>opencode-go</c>-Section lesen — diese (Migration!).</summary>

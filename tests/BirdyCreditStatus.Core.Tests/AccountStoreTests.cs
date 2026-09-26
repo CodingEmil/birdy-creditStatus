@@ -348,6 +348,22 @@ public sealed class AccountStoreTests : IDisposable
     }
 
     [Fact]
+    public void Add_rejects_identical_pi_pair_but_allows_siblings_and_native_sharing()
+    {
+        var store = HermeticStore();
+        var piAuth = WriteAuthFile("pi-auth.json", "{}");
+
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "Pi Codex", piAuth, "openai-codex")));
+        Assert.False(store.Add(new Account(AccountProviders.Codex, "Pi Codex Kopie", piAuth, "openai-codex")));
+        Assert.False(store.Add(new Account(AccountProviders.Codex, "Pi Codex Gross", piAuth.ToUpperInvariant(), "openai-codex")));
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "Pi Codex 2", piAuth, "openai-codex-2")));
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "nativ-a", piAuth, null)));
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "nativ-b", piAuth, null)));
+
+        Assert.Equal(4, store.Load().Count);
+    }
+
+    [Fact]
     public void Rename_keeps_section_and_Remove_deletes_only_named_entry()
     {
         var store = HermeticStore();

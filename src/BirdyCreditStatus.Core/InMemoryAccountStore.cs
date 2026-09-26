@@ -18,7 +18,11 @@ public sealed class InMemoryAccountStore : IAccountStore
 
     public bool Add(Account account)
     {
-        if (!IsValid(account) || _accounts.Any(a => a.Name == account.Name))
+        if (!IsValid(account)
+            || _accounts.Any(a => a.Name == account.Name)
+            || (account.AuthSection is not null
+                && _accounts.Any(a => string.Equals(a.AuthFilePath, account.AuthFilePath, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(a.AuthSection, account.AuthSection, StringComparison.Ordinal))))
         {
             return false;
         }

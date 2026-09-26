@@ -107,6 +107,15 @@ public sealed class AccountStore : IAccountStore
             return false;
         }
 
+        // Gleiches Pi-Key-Material (Datei+Section) nur einmal (#46); native
+        // Dateiteilung (Section null) bleibt erlaubt (D012).
+        if (account.AuthSection is not null
+            && all.Any(a => string.Equals(a.AuthFilePath, account.AuthFilePath, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(a.AuthSection, account.AuthSection, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
         all.Add(account);
         return TrySave(all);
     }
