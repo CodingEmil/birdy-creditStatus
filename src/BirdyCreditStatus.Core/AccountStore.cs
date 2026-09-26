@@ -3,8 +3,9 @@ using System.Text.Json;
 namespace BirdyCreditStatus.Core;
 
 /// <summary>Kontenliste als JSON in <c>%APPDATA%\birdy-creditStatus\accounts.json</c>
-/// (neben <c>snapshot.json</c>, D003). Einträge <c>{ Provider, Name, AuthFilePath }</c>;
-/// feldlose Alt-Einträge (F006) gelten als <c>codex</c>, unbekannte Provider fallen raus.
+/// (neben <c>snapshot.json</c>, D003). Einträge <c>{ Provider, Name, AuthFilePath, AuthSection? }</c>;
+/// feldlose Alt-Einträge (F006) gelten als <c>codex</c>, fehlendes <c>AuthSection</c> (F011-T2)
+/// gilt als nativ (<c>null</c>), unbekannte Provider fallen raus.
 /// Migration: fehlt die Datei, wird jeder vorhandene Default-Login zum Konto
 /// (<c>Claude</c>, <c>Codex</c>, <c>OpenCode Go</c> in Blockreihenfolge) — für Go nur
 /// bei vorhandenem Key (sonst würde die Harness-Datei jede Maschine befüllen).

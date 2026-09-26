@@ -149,6 +149,103 @@ public sealed class AccountValidatorTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Null_section_behaves_exactly_like_native_validation()
+    {
+        var valid = WriteFile("gut.json", """{"tokens":{"access_token":"a","refresh_token":"r"}}""");
+        var invalid = WriteFile("falsch.json", """{"nope":true}""");
+
+        Assert.Equal(
+            AccountValidator.ValidateAuthFile(AccountProviders.Codex, valid),
+            AccountValidator.ValidateAuthFile(AccountProviders.Codex, valid, null));
+        Assert.Equal(
+            AccountValidator.ValidateAuthFile(AccountProviders.Codex, invalid),
+            AccountValidator.ValidateAuthFile(AccountProviders.Codex, invalid, null));
+        Assert.Null(AccountValidator.ValidateAuthFile(AccountProviders.Codex, valid, null));
+        Assert.NotNull(AccountValidator.ValidateAuthFile(AccountProviders.Codex, invalid, null));
+    }
+
+    [Fact]
+    public void Pi_claude_section_with_access_refresh_expires_passes()
+    {
+        var path = WriteFile("pi.json", """
+            {"anthropic": {"access": "a", "refresh": "r", "expires": 99},
+             "openrouter": {"key": "x"}}
+            """);
+
+        Assert.Null(AccountValidator.ValidateAuthFile(AccountProviders.Claude, path, "anthropic"));
+    }
+
+    [Theory]
+    [InlineData("""{"anthropic": {"refresh": "r", "expires": 99}}""")] // access fehlt
+    [InlineData("""{"anthropic": {"access": "", "refresh": "r", "expires": 99}}""")] // access leer
+    [InlineData("""{"anthropic": {"access": "a", "refresh": "r"}}""")] // expires fehlt
+    [InlineData("""{"anthropic": {"access": "a", "refresh": "r", "expires": "bald"}}""")] // expires kein Zeitstempel
+    [InlineData("""{"anthropic": "tot"}""")] // Section kein Objekt
+    [InlineData("""{"openai-codex": {"access": "a", "refresh": "r", "accountId": "id-1"}}""")] // falsche Section
+    public void Pi_claude_section_without_shape_fails_with_german_message(string json)
+    {
+        var path = WriteFile("pi.json", json);
+        var section = json.Contains("openai-codex") ? "openai-codex" : "anthropic";
+
+        var message = AccountValidator.ValidateAuthFile(AccountProviders.Claude, path, section);
+
+        Assert.NotNull(message);
+        Assert.Contains("Pi-Section", message);
+    }
+
+    [Fact]
+    public void Pi_codex_sections_are_validated_individually_per_suffix()
+    {
+        var path = WriteFile("pi.json", """
+            {"openai-codex": {"access": "a", "refresh": "r", "accountId": "id-1"},
+             "openai-codex-2": {"access": "a2", "refresh": "r2", "accountId": "id-2"}}
+            """);
+
+        Assert.Null(AccountValidator.ValidateAuthFile(AccountProviders.Codex, path, "openai-codex"));
+        Assert.Null(AccountValidator.ValidateAuthFile(AccountProviders.Codex, path, "openai-codex-2"));
+    }
+
+    [Theory]
+    [InlineData("""{"openai-codex": {"refresh": "r", "accountId": "id-1"}}""")] // access fehlt
+    [InlineData("""{"openai-codex": {"access": "a", "refresh": "", "accountId": "id-1"}}""")] // refresh leer
+    [InlineData("""{"openai-codex": {"access": "a", "refresh": "r"}}""")] // accountId fehlt
+    [InlineData("""{"openai-codex": {"access": "a", "refresh": "r", "accountId": 42}}""")] // accountId kein Text
+    [InlineData("""{"anthropic": {"access": "a", "refresh": "r", "expires": 99}}""")] // fremdes Provider-Format
+    public void Pi_codex_section_without_shape_fails_with_german_message(string json)
+    {
+        var path = WriteFile("pi.json", json);
+        var section = json.Contains("anthropic") ? "anthropic" : "openai-codex";
+
+        var message = AccountValidator.ValidateAuthFile(AccountProviders.Codex, path, section);
+
+        Assert.NotNull(message);
+        Assert.Contains("Pi-Section", message);
+    }
+
+    [Fact]
+    public void Pi_go_section_with_key_passes_without_key_it_fails()
+    {
+        var valid = WriteFile("pi-gut.json", """{"opencode-go": {"key": "go-1"}}""");
+        var empty = WriteFile("pi-leer.json", """{"opencode-go": {"key": ""}}""");
+        var missing = WriteFile("pi-fremd.json", """{"anthropic": {"access": "a"}}""");
+
+        Assert.Null(AccountValidator.ValidateAuthFile(AccountProviders.OpenCodeGo, valid, "opencode-go"));
+        Assert.Contains("Pi-Section", AccountValidator.ValidateAuthFile(AccountProviders.OpenCodeGo, empty, "opencode-go")!);
+        Assert.Contains("Pi-Section", AccountValidator.ValidateAuthFile(AccountProviders.OpenCodeGo, missing, "fremd")!);
+    }
+
+    [Fact]
+    public void Pi_section_with_missing_or_corrupt_file_never_throws()
+    {
+        var corrupt = WriteFile("kaputt.json", "{not json");
+        var missing = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName(), "fehlt.json");
+
+        Assert.NotNull(AccountValidator.ValidateAuthFile(AccountProviders.Codex, missing, "openai-codex"));
+        Assert.NotNull(AccountValidator.ValidateAuthFile(AccountProviders.Claude, corrupt, "anthropic"));
+        Assert.NotNull(AccountValidator.ValidateAuthFile("fremd", corrupt, "anthropic"));
+    }
+
     private string WriteFile(string name, string content)
     {
         Directory.CreateDirectory(_directory);

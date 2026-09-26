@@ -13,8 +13,10 @@ public static class AccountProviders
         provider is Claude or Codex or OpenCodeGo;
 }
 
-/// <summary>Konto-Naht (F006, verallgemeinert F007, D003-Geist): ein Konto ist ein Tripel
-/// aus Anbieter, frei wählbarem global eindeutigem Namen und Auth-Datei
-/// (wiederverwendeter CLI-Login, z. B. Zweitlogin per CODEX_HOME bzw. Dateikopie).
+/// <summary>Konto-Naht (F006, verallgemeinert F007, F011-T2, D003-Geist): ein Konto ist ein
+/// Quadrupel aus Anbieter, frei wählbarem global eindeutigem Namen, Auth-Datei
+/// (wiederverwendeter CLI-Login, z. B. Zweitlogin per CODEX_HOME bzw. Dateikopie)
+/// und optionaler Pi-Section (<c>AuthSection</c>, <c>null</c> = native Datei,
+/// gesetzt = Treffer aus einer Pi-Datei, gleiche Datei für mehrere Konten erlaubt).
 /// In v1 kein eigener OAuth-Flow in der App.</summary>
-public sealed record Account(string Provider, string Name, string AuthFilePath);
+public sealed record Account(string Provider, string Name, string AuthFilePath, string? AuthSection = null);

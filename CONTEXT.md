@@ -24,10 +24,11 @@ Hinzufügen-Button.
 
 ### Konto
 
-Ein Tripel aus Anbieter (`claude` / `codex` / `opencode-go`), frei wählbarem
-global eindeutigem Namen und Auth-Datei: wiederverwendeter CLI-Login
-(z. B. Zweitlogin per `CODEX_HOME` bzw. Dateikopie), kein eigener OAuth-Flow
-in der App. Auth-Format je Anbieter wie bisher (Claude: `.credentials.json` mit
+Ein Quadrupel aus Anbieter (`claude` / `codex` / `opencode-go`), frei wählbarem
+global eindeutigem Namen, Auth-Datei und optionaler Pi-Section (`AuthSection`,
+`null` = native Datei, gesetzt = Treffer aus einer Pi-Datei, z. B. `anthropic`):
+wiederverwendeter CLI-Login (z. B. Zweitlogin per `CODEX_HOME` bzw. Dateikopie),
+kein eigener OAuth-Flow in der App. Auth-Format je Anbieter wie bisher (Claude: `.credentials.json` mit
 `claudeAiOauth`; Codex: `auth.json` mit `tokens.*`; OpenCode Go: JSON mit
 `opencode-go.key`), Pfad frei wählbar, keine manuelle Key-Eingabe in v1.
 Verwaltung im Popup über einen einheitlichen Dialog (Anbieter + Name + Datei),

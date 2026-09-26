@@ -300,6 +300,69 @@ public sealed class AccountStoreTests : IDisposable
         Assert.Single(store.Load());
     }
 
+    [Fact]
+    public void Add_persists_section_and_reloaded_store_returns_it()
+    {
+        var store = HermeticStore();
+        var piAuth = WriteAuthFile("pi-auth.json", """
+            {"anthropic": {"access": "a", "refresh": "r", "expires": 99},
+             "openai-codex": {"access": "a", "refresh": "r", "accountId": "id-1"}}
+            """);
+
+        Assert.True(store.Add(new Account(AccountProviders.Claude, "Pi Claude", piAuth, "anthropic")));
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "Pi Codex", piAuth, "openai-codex")));
+
+        var loaded = new AccountStore(_directory, _defaultAuthPath, _missingClaudePath, _missingGoPath).Load();
+        Assert.Equal(2, loaded.Count);
+        Assert.Equal("anthropic", loaded[0].AuthSection);
+        Assert.Equal("openai-codex", loaded[1].AuthSection);
+        Assert.Equal(piAuth, loaded[0].AuthFilePath);
+    }
+
+    [Fact]
+    public void Legacy_json_without_section_loads_as_native_null()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(
+            Path.Combine(_directory, "accounts.json"),
+            """[{"Provider":"claude","Name":"alt","AuthFilePath":"C:\\a.json"}]""");
+
+        var loaded = HermeticStore().Load();
+
+        var single = Assert.Single(loaded);
+        Assert.Null(single.AuthSection);
+        Assert.Equal(AccountProviders.Claude, single.Provider);
+    }
+
+    [Fact]
+    public void Same_file_with_different_sections_is_allowed_but_names_stay_globally_unique()
+    {
+        var store = HermeticStore();
+        var piAuth = WriteAuthFile("pi-auth.json", "{}");
+
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "Pi Codex", piAuth, "openai-codex")));
+        Assert.True(store.Add(new Account(AccountProviders.Codex, "Pi Codex 2", piAuth, "openai-codex-2")));
+        Assert.False(store.Add(new Account(AccountProviders.Claude, "Pi Codex", piAuth, "anthropic")));
+
+        Assert.Equal(2, store.Load().Count);
+    }
+
+    [Fact]
+    public void Rename_keeps_section_and_Remove_deletes_only_named_entry()
+    {
+        var store = HermeticStore();
+        var piAuth = WriteAuthFile("pi-auth.json", "{}");
+        store.Add(new Account(AccountProviders.Codex, "alt", piAuth, "openai-codex"));
+        store.Add(new Account(AccountProviders.Codex, "zweit", piAuth, "openai-codex-2"));
+
+        Assert.True(store.Rename("alt", "neu"));
+        Assert.Equal("openai-codex", Assert.Single(store.Load(), a => a.Name == "neu").AuthSection);
+
+        Assert.True(store.Remove("neu"));
+        var remaining = Assert.Single(store.Load());
+        Assert.Equal(("zweit", "openai-codex-2"), (remaining.Name, remaining.AuthSection));
+    }
+
     private string WriteAuthFile(string name, string json)
     {
         Directory.CreateDirectory(_directory);
