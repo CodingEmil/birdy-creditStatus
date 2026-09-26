@@ -14,3 +14,4 @@ Based on `PROJECT.md` and `ARCHITECTURE.md`.
 | F008 | Popup-Größe folgt Inhalt | Fensterhöhe atmet mit der Kartenliste (Cap = min(860, Arbeitshöhe − Rand), kein Minimum, Breite fix 380, darüber Scroll) | F007 | done |
 | F009 | App-Update per Rechtsklick | „App aktualisieren …" prüft GitHub Releases gegen laufende Version; bei Fund Download + Rückfrage + Setup-Start, sonst „aktuell"-Hinweis; nur manuell | F008 | done (#30) |
 | F010 | Auth-Erkennung im Hinzufügen-Dialog | „Automatisch erkennen"-Knopf scannt die 3 Default-Logins per Format-Marker und belegt Anbieter + Pfad vor (Liste bei mehreren Treffern) | F007 | done (#33, #34, #35) |
+| F011 | Pi-Datei mit mehreren Providern | Pi-Datei je Section als Trefferliste mit Checkbox-Mehrfachauswahl (Anbieter + Section je Konto, Namen mit Hochzählen), read-only Abruf, Pi-Defaultpfad als 4. Erkennen-Kandidat | F010 | done (#41, #42, #43, #44, #45) |
