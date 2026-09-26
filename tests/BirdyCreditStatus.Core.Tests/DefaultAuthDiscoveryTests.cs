@@ -113,6 +113,102 @@ public sealed class DefaultAuthDiscoveryTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Pi_hits_are_validated_and_listed_per_section()
+    {
+        var piAuth = WriteAuthFile("pi-auth.json", """
+            {"anthropic": {"access": "a", "refresh": "r", "expires": 99},
+             "openai-codex": {"access": "a", "refresh": "r", "accountId": "id-1"},
+             "openai-codex-2": {"access": "a2", "refresh": "r2", "accountId": "id-2"},
+             "opencode-go": {"key": "go-1"},
+             "openrouter": {"key": "x"}}
+            """);
+
+        var found = DefaultAuthDiscovery.DetectAccountsFrom([], [], piAuth);
+
+        Assert.Equal(
+            ["anthropic", "openai-codex", "openai-codex-2", "opencode-go"],
+            found.Select(c => c.Section));
+        Assert.All(found, c => Assert.Equal(piAuth, c.Path));
+    }
+
+    [Fact]
+    public void Invalid_pi_sections_are_excluded()
+    {
+        var piAuth = WriteAuthFile("pi-auth.json", """
+            {"anthropic": {"access": "a", "refresh": "r"},
+             "openai-codex": {"access": "a", "refresh": "r", "accountId": "id-1"}}
+            """);
+
+        var found = DefaultAuthDiscovery.DetectAccountsFrom([], [], piAuth);
+
+        var single = Assert.Single(found);
+        Assert.Equal("openai-codex", single.Section);
+    }
+
+    [Fact]
+    public void Configured_section_pairs_are_filtered_but_siblings_remain()
+    {
+        var piAuth = WriteAuthFile("pi-auth.json", """
+            {"anthropic": {"access": "a", "refresh": "r", "expires": 99},
+             "openai-codex": {"access": "a", "refresh": "r", "accountId": "id-1"}}
+            """);
+        var accounts = new[]
+        {
+            new Account(AccountProviders.Codex, "Pi Codex", piAuth.ToUpperInvariant(), "openai-codex"),
+        };
+
+        var found = DefaultAuthDiscovery.DetectAccountsFrom(accounts, [], piAuth);
+
+        var single = Assert.Single(found);
+        Assert.Equal("anthropic", single.Section);
+    }
+
+    [Fact]
+    public void Native_go_on_pi_path_covers_pi_go_section()
+    {
+        var piAuth = WriteAuthFile("pi-auth.json", """
+            {"anthropic": {"access": "a", "refresh": "r", "expires": 99},
+             "opencode-go": {"key": "go-1"}}
+            """);
+        var accounts = new[]
+        {
+            new Account(AccountProviders.OpenCodeGo, "OpenCode Go", piAuth, null),
+        };
+
+        var found = DefaultAuthDiscovery.DetectAccountsFrom(accounts, [], piAuth);
+
+        var single = Assert.Single(found);
+        Assert.Equal("anthropic", single.Section);
+    }
+
+    [Fact]
+    public void Native_candidates_on_pi_path_are_superseded_by_pi_hits()
+    {
+        var piAuth = WriteAuthFile("pi-auth.json", """{"opencode-go": {"key": "go-1"}}""");
+        var natives = new[] { (AccountProviders.OpenCodeGo, piAuth) };
+
+        var found = DefaultAuthDiscovery.DetectAccountsFrom([], natives, piAuth);
+
+        var single = Assert.Single(found);
+        Assert.Equal("opencode-go", single.Section);
+        Assert.Equal(AccountProviders.OpenCodeGo, single.Provider);
+    }
+
+    [Fact]
+    public void Missing_pi_file_yields_native_only()
+    {
+        var native = WriteAuthFile("codex.json", """{"tokens":{"access_token":"a","refresh_token":"r"}}""");
+        var natives = new[] { (AccountProviders.Codex, native) };
+
+        var found = DefaultAuthDiscovery.DetectAccountsFrom(
+            [], natives, Path.Combine(_directory, "fehlt.json"));
+
+        var single = Assert.Single(found);
+        Assert.Null(single.Section);
+        Assert.Equal(native, single.Path);
+    }
+
     private string WriteAuthFile(string name, string json)
     {
         Directory.CreateDirectory(_directory);

@@ -1248,9 +1248,23 @@ public sealed partial class PopupWindow : Window
             .Select(a => a.Name)
             .ToList();
 
-    /// <summary>Dialog „Konto hinzufügen" (F007-T3): Anbieter-Dropdown + Name + Auth-Datei
-    /// (Default je Provider, Dateidialog per Durchsuchen). Validierung ohne Absturz;
-    /// gültig → Karte nach Refresh ohne Neustart, ungültig → Meldung im Dialog, keine Karte.</summary>
+    /// <summary>Eine angehakte Pi-Zeile im Hinzufügen-Dialog (F011-T4): Treffer plus
+    /// editierbarer Namensvorschlag plus Zeilenfehler (blockiert nur diese Zeile).</summary>
+    private sealed class PiPickRow(DetectedAuth hit, CheckBox pick, TextBox nameBox, TextBlock error)
+    {
+        public DetectedAuth Hit { get; } = hit;
+        public CheckBox Pick { get; } = pick;
+        public TextBox NameBox { get; } = nameBox;
+        public TextBlock Error { get; } = error;
+    }
+
+    /// <summary>Dialog „Konto hinzufügen" (F007-T3, Pi-Multi seit F011-T4):
+    /// Anbieter-Dropdown + Name + Auth-Datei (Default je Provider, Dateidialog per
+    /// Durchsuchen, Trefferliste per Automatisch-erkennen). Pi-Dateien bieten ihre
+    /// Sections als Checkbox-Liste mit editierbaren Namensvorschlägen (N Konten,
+    /// gleiche Datei, Provider+Section je Karte); Einzelkonto ggf. mit Section aus
+    /// der Erkennung. Validierung ohne Absturz; gültig → Karten nach Refresh ohne
+    /// Neustart, ungültig → Meldung im Dialog, keine Karte.</summary>
     private async void OnAddAccountClicked(object sender, RoutedEventArgs e)
     {
         var providerBox = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -1270,21 +1284,10 @@ public sealed partial class PopupWindow : Window
             Text = AccountProviderPaths.DefaultAuthPath(AccountProviders.Codex),
             PlaceholderText = AccountProviderPaths.DefaultAuthPath(AccountProviders.Codex),
         };
-        providerBox.SelectionChanged += (_, _) =>
-        {
-            var def = AccountProviderPaths.DefaultAuthPath(SelectedProvider(providerBox));
-            pathBox.Text = def;
-            pathBox.PlaceholderText = def;
-        };
+        string? piSection = null;
+        string piDetectedPath = string.Empty;
+        var piRows = new List<PiPickRow>();
         var browseButton = new Button { Content = "Durchsuchen …" };
-        browseButton.Click += async (_, _) =>
-        {
-            var picked = await PickAuthFileAsync(SelectedProvider(providerBox));
-            if (picked is not null)
-            {
-                pathBox.Text = picked;
-            }
-        };
         var errorText = new TextBlock { Visibility = Visibility.Collapsed, TextWrapping = TextWrapping.Wrap };
         try
         {
@@ -1305,24 +1308,100 @@ public sealed partial class PopupWindow : Window
             Visibility = Visibility.Collapsed,
             PlaceholderText = "Gefundenes Login wählen …",
         };
+        var piLabel = new TextBlock
+        {
+            Text = "Treffer in dieser Pi-Datei — wählen, Namen bei Bedarf anpassen",
+            Visibility = Visibility.Collapsed,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        var piBox = new StackPanel { Spacing = 6, Visibility = Visibility.Collapsed };
+        void RefreshPiHits()
+        {
+            piRows.Clear();
+            piBox.Children.Clear();
+            var current = pathBox.Text.Trim();
+            piDetectedPath = current;
+            var hits = PiAuthDiscovery.DetectFile(current);
+            if (hits.Count == 0)
+            {
+                piLabel.Visibility = Visibility.Collapsed;
+                piBox.Visibility = Visibility.Collapsed;
+                return;
+            }
+            var suggestions = PiAccountNames.Suggest(hits, ExistingAccountNames());
+            for (var i = 0; i < hits.Count; i++)
+            {
+                var hit = hits[i];
+                var check = new CheckBox
+                {
+                    Content = $"{suggestions[i]} ({hit.Section})",
+                    IsChecked = true,
+                };
+                var nameEdit = new TextBox { Text = suggestions[i] };
+                var rowError = new TextBlock
+                {
+                    Visibility = Visibility.Collapsed,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = errorText.Foreground,
+                };
+                piRows.Add(new PiPickRow(hit, check, nameEdit, rowError));
+                piBox.Children.Add(new StackPanel
+                {
+                    Spacing = 2,
+                    Children = { check, nameEdit, rowError },
+                });
+            }
+            piLabel.Visibility = Visibility.Visible;
+            piBox.Visibility = Visibility.Visible;
+        }
+        providerBox.SelectionChanged += (_, _) =>
+        {
+            var def = AccountProviderPaths.DefaultAuthPath(SelectedProvider(providerBox));
+            pathBox.Text = def;
+            pathBox.PlaceholderText = def;
+            piSection = null;
+            RefreshPiHits();
+        };
+        browseButton.Click += async (_, _) =>
+        {
+            var picked = await PickAuthFileAsync(SelectedProvider(providerBox));
+            if (picked is not null)
+            {
+                pathBox.Text = picked;
+                piSection = null;
+                RefreshPiHits();
+            }
+        };
+        pathBox.TextChanged += (_, _) =>
+        {
+            // Handedit macht eine gezeigte Trefferliste ungültig (falsche Datei);
+            // Durchsuchen/Erkennen/Verlassen baut sie neu auf.
+            if (!string.Equals(pathBox.Text.Trim(), piDetectedPath, StringComparison.Ordinal))
+            {
+                piSection = null;
+                piRows.Clear();
+                piBox.Children.Clear();
+                piLabel.Visibility = Visibility.Collapsed;
+                piBox.Visibility = Visibility.Collapsed;
+            }
+        };
+        pathBox.LostFocus += (_, _) => RefreshPiHits();
         foundBox.SelectionChanged += (_, _) =>
         {
             if ((foundBox.SelectedItem as ComboBoxItem)?.Tag is DetectedAuth pick)
             {
                 SelectProvider(providerBox, pick.Provider);
                 pathBox.Text = pick.Path;
+                piSection = pick.Section;
                 errorText.Visibility = Visibility.Collapsed;
+                RefreshPiHits();
             }
         };
         detectButton.Click += (_, _) =>
         {
-            // F010-T2: nur die 3 Defaults per Marker (Core-Naht, nie Throw);
-            // Eingerichtete Pfade filtert Detect bereits raus.
-            var configured = _accounts.Load()
-                .Where(a => !string.IsNullOrWhiteSpace(a.AuthFilePath))
-                .Select(a => a.AuthFilePath)
-                .ToList();
-            var found = DefaultAuthDiscovery.Detect(configured);
+            // F011-T4: Defaults plus Pi-Defaultdatei je Section (Core-Naht, nie Throw);
+            // eingerichtete (Pfad, Section)-Paare filtert DetectAccounts bereits raus.
+            var found = DefaultAuthDiscovery.DetectAccounts(_accounts.Load());
             if (found.Count == 0)
             {
                 foundLabel.Visibility = Visibility.Collapsed;
@@ -1338,6 +1417,8 @@ public sealed partial class PopupWindow : Window
                 foundBox.Visibility = Visibility.Collapsed;
                 SelectProvider(providerBox, found[0].Provider);
                 pathBox.Text = found[0].Path;
+                piSection = found[0].Section;
+                RefreshPiHits();
                 return;
             }
             foundBox.Items.Clear();
@@ -1345,7 +1426,9 @@ public sealed partial class PopupWindow : Window
             {
                 foundBox.Items.Add(new ComboBoxItem
                 {
-                    Content = $"{candidate.DisplayName} — {candidate.Path}",
+                    Content = candidate.Section is null
+                        ? $"{candidate.DisplayName} — {candidate.Path}"
+                        : $"{candidate.DisplayName} — {candidate.Path} ({candidate.Section})",
                     Tag = candidate,
                 });
             }
@@ -1363,7 +1446,10 @@ public sealed partial class PopupWindow : Window
         panel.Children.Add(new TextBlock { Text = "Auth-Datei" });
         panel.Children.Add(pathBox);
         panel.Children.Add(browseButton);
+        panel.Children.Add(piLabel);
+        panel.Children.Add(piBox);
         panel.Children.Add(errorText);
+        RefreshPiHits();
 
         var dialog = new ContentDialog
         {
@@ -1379,32 +1465,80 @@ public sealed partial class PopupWindow : Window
             XamlRoot = Content.XamlRoot,
         };
         var confirmed = false;
-        string provider = AccountProviders.Codex;
-        string name = string.Empty;
-        string path = string.Empty;
+        var added = new List<Account>();
         dialog.PrimaryButtonClick += (_, args) =>
         {
-            provider = SelectedProvider(providerBox);
-            name = nameBox.Text.Trim();
-            path = pathBox.Text.Trim();
-            var problem = AccountValidator.ValidateName(name, ExistingAccountNames())
-                ?? AccountValidator.ValidateAuthFile(provider, path);
-            if (problem is not null)
+            // F011-T4: sichtbare Pi-Trefferliste → N Konten (Zeilenfehler blockieren
+            // nur ihre Zeile); sonst Einzelkonto wie bisher (ggf. mit Pi-Section
+            // aus „Automatisch erkennen"). Format-gültig = anlegbar, auch bei toten
+            // Tokens; Abruf-Fehler erscheinen danach pro Karte.
+            if (piBox.Visibility == Visibility.Visible && piRows.Count > 0)
+            {
+                var picked = piRows.Where(r => r.Pick.IsChecked == true).ToList();
+                if (picked.Count == 0)
+                {
+                    args.Cancel = true;
+                    errorText.Text = "Bitte mindestens einen Treffer wählen — oder Abbrechen.";
+                    errorText.Visibility = Visibility.Visible;
+                    return;
+                }
+                foreach (var row in piRows)
+                {
+                    row.Error.Visibility = Visibility.Collapsed;
+                }
+                var taken = ExistingAccountNames().ToList();
+                foreach (var row in picked)
+                {
+                    var rowName = row.NameBox.Text.Trim();
+                    var problem = AccountValidator.ValidateName(rowName, taken)
+                        ?? AccountValidator.ValidateAuthFile(row.Hit.Provider, row.Hit.Path, row.Hit.Section);
+                    if (problem is not null)
+                    {
+                        row.Error.Text = problem;
+                        row.Error.Visibility = Visibility.Visible;
+                        continue;
+                    }
+                    var rowAccount = new Account(row.Hit.Provider, rowName, row.Hit.Path, row.Hit.Section);
+                    if (!_accounts.Add(rowAccount))
+                    {
+                        row.Error.Text = $"„{rowName}“ konnte nicht gespeichert werden — bitte erneut versuchen.";
+                        row.Error.Visibility = Visibility.Visible;
+                        continue;
+                    }
+                    taken.Add(rowName);
+                    added.Add(rowAccount);
+                }
+                if (added.Count == 0)
+                {
+                    args.Cancel = true;
+                    errorText.Text = "Keine Konten angelegt — bitte die Zeilenfehler prüfen.";
+                    errorText.Visibility = Visibility.Visible;
+                    return;
+                }
+                confirmed = true;
+                return;
+            }
+            var provider = SelectedProvider(providerBox);
+            var name = nameBox.Text.Trim();
+            var path = pathBox.Text.Trim();
+            var single = AccountValidator.ValidateName(name, ExistingAccountNames())
+                ?? AccountValidator.ValidateAuthFile(provider, path, piSection);
+            if (single is not null)
             {
                 args.Cancel = true;
-                errorText.Text = problem;
+                errorText.Text = single;
                 errorText.Visibility = Visibility.Visible;
                 return;
             }
-
-            if (!_accounts.Add(new Account(provider, name, path)))
+            var singleAccount = new Account(provider, name, path, piSection);
+            if (!_accounts.Add(singleAccount))
             {
                 args.Cancel = true;
                 errorText.Text = $"„{name}“ konnte nicht gespeichert werden — bitte erneut versuchen.";
                 errorText.Visibility = Visibility.Visible;
                 return;
             }
-
+            added.Add(singleAccount);
             confirmed = true;
         };
         await ShowDialogAsync(dialog);
@@ -1413,7 +1547,10 @@ public sealed partial class PopupWindow : Window
             return;
         }
 
-        _refresh.UpsertAdapter(name, CreateAdapter(new Account(provider, name, path)));
+        foreach (var account in added)
+        {
+            _refresh.UpsertAdapter(account.Name, CreateAdapter(account));
+        }
         Render(await _refresh.RefreshAllAsync());
     }
 

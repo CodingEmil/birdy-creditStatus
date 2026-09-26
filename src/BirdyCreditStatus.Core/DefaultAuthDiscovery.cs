@@ -18,6 +18,80 @@ public static class DefaultAuthDiscovery
     public static IReadOnlyList<DetectedAuth> Detect(IEnumerable<string>? configuredPaths = null) =>
         DetectFrom(DefaultCandidates(), configuredPaths);
 
+    /// <summary>Erkennung inkl. Pi-Defaultdatei (F011-T4): native Defaults plus je
+    /// formatgültiger Pi-Section ein Treffer (1 Pfad → N Kandidaten via
+    /// <c>Section</c>-Feld, geprüft per <see cref="AccountValidator"/>).
+    /// Bereits eingerichtete (Pfad, Section)-Paare fallen raus; native Kandidaten auf
+    /// der Pi-Datei entfallen, sobald sie Treffer liefert (kein Doppelangebot).
+    /// Nie Throw (D003-Geist).</summary>
+    public static IReadOnlyList<DetectedAuth> DetectAccounts(IEnumerable<Account> accounts) =>
+        DetectAccountsFrom(
+            accounts,
+            DefaultCandidates(),
+            AccountProviderPaths.DefaultAuthPath(AccountProviders.OpenCodeGo));
+
+    /// <summary>Kern (testbar): native Kandidaten plus Pi-Sections aus <c>piPath</c>.</summary>
+    public static IReadOnlyList<DetectedAuth> DetectAccountsFrom(
+        IEnumerable<Account>? accounts,
+        IEnumerable<(string Provider, string Path)> nativeCandidates,
+        string? piPath)
+    {
+        var list = accounts?.ToList() ?? [];
+        var configuredPaths = list
+            .Where(a => !string.IsNullOrWhiteSpace(a.AuthFilePath))
+            .Select(a => a.AuthFilePath)
+            .ToList();
+        var found = DetectFrom(nativeCandidates, configuredPaths).ToList();
+        var piHits = DetectPiHits(piPath, list);
+        if (piHits.Count > 0)
+        {
+            found.RemoveAll(h => string.Equals(h.Path, piPath, StringComparison.OrdinalIgnoreCase));
+        }
+
+        found.AddRange(piHits);
+        return found;
+    }
+
+    private static IReadOnlyList<DetectedAuth> DetectPiHits(string? piPath, IReadOnlyList<Account> accounts)
+    {
+        if (string.IsNullOrWhiteSpace(piPath))
+        {
+            return [];
+        }
+
+        var hits = new List<DetectedAuth>();
+        foreach (var candidate in PiAuthDiscovery.DetectFile(piPath))
+        {
+            if (accounts.Any(a => string.Equals(a.AuthFilePath, candidate.Path, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(EffectiveSection(a), candidate.Section, StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (AccountValidator.ValidateAuthFile(candidate.Provider, candidate.Path, candidate.Section) is not null)
+                {
+                    continue;
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                continue;
+            }
+
+            hits.Add(candidate);
+        }
+
+        return hits;
+    }
+
+    /// <summary>Belegte Section eines Kontos: Pi-Section oder — für native Go-Konten,
+    /// die stets die <c>opencode-go</c>-Section lesen — diese (Migration!).</summary>
+    private static string? EffectiveSection(Account account) =>
+        account.AuthSection
+        ?? (account.Provider == AccountProviders.OpenCodeGo ? "opencode-go" : null);
+
     /// <summary>Kern (testbar): prüft beliebige Kandidaten gegen ihr Provider-Format.</summary>
     public static IReadOnlyList<DetectedAuth> DetectFrom(
         IEnumerable<(string Provider, string Path)> candidates,
