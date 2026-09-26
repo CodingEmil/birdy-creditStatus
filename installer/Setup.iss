@@ -20,7 +20,7 @@
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.4.5"
+  #define MyAppVersion "1.5.0"
 #endif
 #define MyAppName "birdy-creditStatus"
 #define MyAppExe "BirdyCreditStatus.exe"
