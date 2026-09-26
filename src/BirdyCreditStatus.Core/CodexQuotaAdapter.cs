@@ -59,19 +59,25 @@ public sealed class CodexQuotaAdapter : IQuotaAdapter
         if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             response.Dispose();
-            var (refreshed, dead) = await RefreshAsync(credentials, cancellationToken);
-            if (dead)
+            using (await _store.AcquireRefreshLockAsync(cancellationToken))
             {
-                return NotAvailable(loginRequired: true);
-            }
+                // Another account may already have rotated this file while usage was in flight.
+                var latest = await _store.LoadAsync(cancellationToken);
+                if (latest is null) return NotAvailable(loginRequired: true);
+                if (latest.AccessToken != credentials.AccessToken || latest.RefreshToken != credentials.RefreshToken)
+                {
+                    credentials = latest;
+                }
+                else
+                {
+                    var (refreshed, dead) = await RefreshAsync(latest, cancellationToken);
+                    if (dead) return NotAvailable(loginRequired: true);
+                    if (refreshed is null) return NotAvailable();
 
-            if (refreshed is null)
-            {
-                return NotAvailable();
+                    credentials = refreshed;
+                    await _store.SaveAsync(credentials, cancellationToken);
+                }
             }
-
-            credentials = refreshed;
-            await _store.SaveAsync(credentials, cancellationToken);
             response = await GetUsageAsync(credentials, cancellationToken);
             if (response is null)
             {

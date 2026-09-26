@@ -10,6 +10,9 @@ public sealed class FileClaudeCredentialStore(string? pathOverride = null) : ICl
     private readonly string _path = pathOverride
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", ".credentials.json");
 
+    public Task<IDisposable> AcquireRefreshLockAsync(CancellationToken cancellationToken = default) =>
+        CredentialRefreshLock.AcquireFileAsync(_path, cancellationToken);
+
     public async Task<ClaudeOAuthCredentials?> LoadAsync(CancellationToken cancellationToken = default)
     {
         try

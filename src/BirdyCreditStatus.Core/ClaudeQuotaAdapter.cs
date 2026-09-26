@@ -93,6 +93,15 @@ public sealed class ClaudeQuotaAdapter : IQuotaAdapter
 
         try
         {
+            using var rotation = await _store.AcquireRefreshLockAsync(cancellationToken);
+            var latest = await _store.LoadAsync(cancellationToken);
+            if (latest is null) return null;
+            credentials = latest;
+            if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() < credentials.ExpiresAtUnixMs - (long)RefreshSkew.TotalMilliseconds)
+            {
+                return credentials; // Another account already refreshed the shared file.
+            }
+
             var payload = JsonSerializer.Serialize(new
             {
                 grant_type = "refresh_token",

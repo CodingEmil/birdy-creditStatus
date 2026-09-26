@@ -12,6 +12,9 @@ public sealed class FileCodexCredentialStore(string? pathOverride = null) : ICod
     private readonly string _path = pathOverride
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex", "auth.json");
 
+    public Task<IDisposable> AcquireRefreshLockAsync(CancellationToken cancellationToken = default) =>
+        CredentialRefreshLock.AcquireFileAsync(_path, cancellationToken);
+
     public async Task<CodexOAuthCredentials?> LoadAsync(CancellationToken cancellationToken = default)
     {
         try
