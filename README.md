@@ -33,7 +33,8 @@ Nur **Windows 11 (x64)**. Update: Rechtsklick → *App aktualisieren …* oder n
 ## Entwickeln
 
 ```powershell
-dotnet test tests/BirdyCreditStatus.Core.Tests   # 177 Tests
+dotnet test tests/BirdyCreditStatus.Core.Tests   # 204 Tests
+powershell -NoProfile -File installer/tests/Test-WindowsAppRuntime.Tests.ps1 # 19 Runtime-Prüfungen
 dotnet build BirdyCreditStatus.slnx              # 0 Warnungen
 ```
 

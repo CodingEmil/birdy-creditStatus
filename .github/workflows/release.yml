@@ -36,6 +36,14 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      - name: Core-Regressionssuite
+        shell: pwsh
+        run: dotnet test tests/BirdyCreditStatus.Core.Tests -c Release
+
+      - name: Runtime-Bootstrap-Prüfung testen
+        shell: powershell
+        run: ./installer/tests/Test-WindowsAppRuntime.Tests.ps1
+
       - name: Publish (self-contained, kein .NET auf Ziel-PC nötig)
         shell: pwsh
         run: >

@@ -3,7 +3,8 @@ using BirdyCreditStatus.Core;
 
 // Read-only audit of production code. All files are synthetic and isolated in TEMP;
 // all HTTP is handled in memory. No real credentials, network, registry or app UI.
-// Assertions express the expected behavior. Known bugs intentionally make this exit 1.
+// Assertions express the expected behavior. Original v1.4.4: 1 passed, 8 failed (exit 1).
+// After the fixes this same reproducer is expected to pass all 9 checks (exit 0).
 internal static class Program
 {
     private static async Task<int> Main()
@@ -34,7 +35,7 @@ internal static class Program
                 Console.WriteLine($"FAIL {name}: {ex.GetType().Name}: {ex.Message}");
             }
         }
-        Console.WriteLine($"{cases.Length - failed} passed, {failed} failed (expected on unmodified v1.4.4).");
+        Console.WriteLine($"{cases.Length - failed} passed, {failed} failed. Original v1.4.4 baseline: 1 passed, 8 failed.");
         return failed == 0 ? 0 : 1;
     }
 
